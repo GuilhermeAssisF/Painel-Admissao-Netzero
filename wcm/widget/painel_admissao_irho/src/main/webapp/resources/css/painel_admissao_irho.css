@@ -1,0 +1,197 @@
+/* ======================================================================================
+   CSS PAINEL DE ADMISSÃO DIGITAL
+   ====================================================================================== */
+
+.filter-cards-row {
+    margin-top: 15px;
+    margin-bottom: 15px;
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+    position: relative;
+    z-index: 100;
+}
+
+.filter-card {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 20px;
+    padding: 5px 15px;
+    display: flex;
+    align-items: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    transition: all 0.2s ease;
+    position: relative;
+    min-height: 40px;
+}
+
+.filter-card:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    transform: translateY(-1px);
+}
+
+.filter-card.search-card {
+    min-width: 250px;
+    cursor: text;
+}
+
+.filter-card.search-card i {
+    color: #999;
+    margin-right: 8px;
+}
+
+.filter-card.search-card input {
+    border: none;
+    outline: none;
+    width: 100%;
+    background: transparent;
+    font-size: 14px;
+    color: #555;
+}
+
+.filter-card.dropdown-card {
+    cursor: pointer;
+    user-select: none;
+    padding-right: 10px;
+}
+
+.filter-card.dropdown-card .card-label {
+    font-weight: 600;
+    color: #58595b;
+    margin-right: 8px;
+}
+
+.filter-card.dropdown-card i.arrow {
+    font-size: 10px;
+    margin-left: 5px;
+    transition: transform 0.2s;
+}
+
+.filter-card-options {
+    position: absolute;
+    top: 110%;
+    left: 0;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    padding: 10px;
+    z-index: 1000;
+    min-width: 160px;
+    display: none;
+}
+
+.filter-card-options.active {
+    display: block;
+}
+
+.filter-card-options label {
+    display: block;
+    width: 100%;
+    margin-bottom: 8px;
+    cursor: pointer;
+    font-weight: normal;
+    white-space: nowrap;
+}
+
+.filter-card-options label:last-child {
+    margin-bottom: 0;
+}
+
+.filter-card-options input[type="checkbox"] {
+    margin-right: 8px;
+    vertical-align: middle;
+}
+
+.filter-card.action-card {
+    cursor: pointer;
+    border: 1px solid #ffcdd2;
+    background-color: #ffebee;
+    transition: background-color 0.2s;
+}
+
+.filter-card.action-card:hover {
+    background-color: #ffcdd2;
+}
+
+.filter-card.action-card .card-label {
+    color: #d32f2f;
+    font-weight: 600;
+    margin-right: 0;
+}
+
+.custom-page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 15px;
+    position: relative; 
+    z-index: 101;
+}
+
+.header-title h2 {
+    margin: 0;
+    font-size: 24px;
+    color: #444;
+    font-weight: 300;
+    display: flex;
+    align-items: center;
+}
+
+.header-title i {
+    margin-right: 10px;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.opt-page-len {
+    padding: 6px 10px;
+    border-radius: 4px;
+    transition: background 0.2s;
+    color: #555;
+}
+
+.opt-page-len:hover {
+    background-color: #f5f5f5;
+    color: #2196F3;
+    cursor: pointer;
+}
+
+/* --- CARDS DE TOTAIS (INFO CARDS) --- */
+.filter-card.info-card {
+    cursor: default;
+    background-color: #fafafa;
+    border: 1px solid #e0e0e0;
+}
+
+.filter-card.info-card:hover {
+    transform: none;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.filter-card.info-card .card-label {
+    margin-right: 5px;
+    font-weight: 600;
+    color: #555;
+}
+
+.filter-card.info-card .card-value {
+    font-weight: bold;
+    font-size: 15px;
+}
+
+.filter-card.info-card.card-aberto .card-value { color: #FF9800; }
+.filter-card.info-card.card-baixado .card-value { color: #4CAF50; }
+.filter-card.info-card.card-total .card-value { color: #2196F3; }
+
+.filter-card.info-card i {
+    margin-right: 8px;
+}

@@ -1,0 +1,17 @@
+application.type=widget
+application.code=painel_admissao_irho
+application.title=Painel Admissão IRHO
+application.description=Painel de acompanhamento de Admissões Digitais
+application.category=Admissão IRHO
+application.renderer=freemarker
+developer.code=Guilherme
+developer.name=giloc
+developer.url=http://www.fluig.com
+application.uiwidget=true
+application.mobileapp=false
+application.version=${build.version}-${build.revision}
+view.file=view.ftl
+edit.file=edit.ftl
+locale.file.base.name=painel_admissao_irho
+application.resource.js.1=/resources/js/painel_admissao_irho.js
+application.resource.css.2=/resources/css/painel_admissao_irho.css
