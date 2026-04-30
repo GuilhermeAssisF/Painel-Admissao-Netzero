@@ -303,12 +303,29 @@ var WidgetAdmissao = SuperWidget.extend({
                     data: null, className: "text-center", orderable: false,
                     render: function (data, type, row) {
                         var rowJson = encodeURIComponent(JSON.stringify(row));
+
                         if (row.processoAbertoId) {
-                            return '<button class="btn btn-warning btn-sm btn-rounded" onclick="WidgetAdmissao.instance().abrirProcessoExistente(\'' + row.processoAbertoId + '\')">' +
-                                '<i class="fluigicon fluigicon-info-sign"></i> Ver</button>';
+                            // gap reduzido para 4px para deixar os botões mais próximos
+                            var botoes = '<div style="display: flex; flex-direction: column; gap: 4px; align-items: stretch;">' +
+                                '<button class="btn btn-warning btn-sm btn-rounded" style="width: 100%; font-size: 11px; padding: 4px 8px;" title="Abrir Processo" onclick="WidgetAdmissao.instance().abrirProcessoExistente(\'' + row.processoAbertoId + '\')">' +
+                                '<i class="fluigicon fluigicon-info-sign"></i> Ver Solicitação</button>';
+
+                            // Regra: Botão de E-mail só aparece se for uma etapa do candidato
+                            var atvsCandidato = ["122", "150", "129"];
+                            if (atvsCandidato.indexOf(String(row.atividadeFluig)) !== -1) {
+                                // Estilo compactado aplicado aqui também
+                                botoes += '<button class="btn btn-success btn-sm btn-rounded" style="width: 100%; font-size: 11px; padding: 4px 8px;" title="Reenviar Link por E-mail" onclick="WidgetAdmissao.instance().reenviarEmailCandidato(\'' + rowJson + '\')">' +
+                                    '<i class="fluigicon fluigicon-envelope"></i> Reenviar E-mail</button>';
+                            }
+
+                            botoes += '</div>';
+                            return botoes;
+
                         } else {
-                            return '<button class="btn btn-primary btn-sm btn-rounded" onclick="WidgetAdmissao.instance().iniciarProcessoAdmissao(\'' + rowJson + '\')">' +
-                                '<i class="fluigicon fluigicon-play-circle"></i> Iniciar</button>';
+                            return '<div style="display: flex; flex-direction: column; align-items: stretch;">' +
+                                '<button class="btn btn-primary btn-sm btn-rounded" style="width: 100%; font-size: 11px; padding: 4px 8px;" onclick="WidgetAdmissao.instance().iniciarProcessoAdmissao(\'' + rowJson + '\')">' +
+                                '<i class="fluigicon fluigicon-play-circle"></i> Iniciar</button>' +
+                                '</div>';
                         }
                     }
                 }
@@ -468,6 +485,99 @@ var WidgetAdmissao = SuperWidget.extend({
         var urlFluig = '/portal/p/' + tenant + '/pageworkflowview?processID=FLUIG-0002%20-%20Admissão%20IRHO';
 
         window.open(urlFluig, '_blank');
+    },
+
+    /**
+     * Função para reenviar o link para o candidato baseado na etapa em que ele está parado
+     */
+    /**
+     * Função para reenviar o link para o candidato baseado na etapa em que ele está parado
+     */
+    reenviarEmailCandidato: function (rowJsonEncoded) {
+        var row = JSON.parse(decodeURIComponent(rowJsonEncoded));
+        var numSolicitacao = row.processoAbertoId;
+        var nome = row.nomeCandidato;
+        var atividade = String(row.atividadeFluig);
+
+        var load = FLUIGC.loading(window, { textMessage: 'Buscando e-mail atualizado do candidato...' });
+        load.show();
+
+        // 1. Busca os dados do formulário atualizados no Fluig
+        var c1 = DatasetFactory.createConstraint("idProcessoFluig", numSolicitacao, numSolicitacao, ConstraintType.MUST);
+
+        DatasetFactory.getDataset("ds_dados_publicos_candidato", null, [c1], null, {
+            success: function (dsDados) {
+                var emailDestino = "";
+
+                if (dsDados && dsDados.values && dsDados.values.length > 0) {
+                    // Pega o e-mail do campo principal, com fallback caso existam variações
+                    emailDestino = dsDados.values[0].txtEmail || dsDados.values[0].cpEmailCandidato || "";
+                }
+
+                if (!emailDestino || emailDestino.trim() === "") {
+                    load.hide();
+                    FLUIGC.toast({ title: 'Aviso:', message: 'E-mail não encontrado no cadastro deste processo.', type: 'warning' });
+                    return;
+                }
+
+                load.textMessage = 'Enviando e-mail...';
+
+                // 2. Identifica qual a URL que precisamos buscar baseado na etapa
+                var chaveUrlConfig = "URL_PAGINA_CANDIDATO"; // Padrão para a 122
+                if (atividade === "150") chaveUrlConfig = "URL_PAGINA_CORRECAO";
+                if (atividade === "129") chaveUrlConfig = "URL_PAGINA_ASSINATURA";
+
+                // 3. Busca a URL Base dinamicamente no Dataset de Configurações
+                var cActive = DatasetFactory.createConstraint("metadata#active", "true", "true", ConstraintType.MUST);
+
+                DatasetFactory.getDataset("Form_Configuracoes_Admissao", null, [cActive], null, {
+                    success: function (dsConfig) {
+                        var baseUrl = "URL_NAO_CONFIGURADA";
+
+                        if (dsConfig && dsConfig.values && dsConfig.values.length > 0) {
+                            baseUrl = dsConfig.values[0][chaveUrlConfig];
+                        }
+
+                        if (baseUrl === "URL_NAO_CONFIGURADA" || !baseUrl) {
+                            load.hide();
+                            FLUIGC.toast({ title: 'Erro de Configuração:', message: 'A URL (' + chaveUrlConfig + ') não foi encontrada nas configurações.', type: 'danger' });
+                            return;
+                        }
+
+                        // 4. Monta o link final com o ID da solicitação e dispara o Dataset de Envio
+                        var linkPublico = baseUrl + "?id_origem=" + numSolicitacao;
+
+                        var cEmail = DatasetFactory.createConstraint("emailDestino", emailDestino, emailDestino, ConstraintType.MUST);
+                        var cNome = DatasetFactory.createConstraint("nomeCandidato", nome, nome, ConstraintType.MUST);
+                        var cLink = DatasetFactory.createConstraint("linkAcesso", linkPublico, linkPublico, ConstraintType.MUST);
+
+                        DatasetFactory.getDataset("ds_reenviar_email_link", null, [cEmail, cNome, cLink], null, {
+                            success: function (data) {
+                                load.hide();
+                                if (data.values && data.values.length > 0 && data.values[0].status == "OK") {
+                                    FLUIGC.toast({ title: 'Sucesso:', message: 'E-mail reenviado para ' + emailDestino, type: 'success' });
+                                } else {
+                                    var msgErro = (data.values && data.values.length > 0) ? data.values[0].mensagem : "Erro desconhecido";
+                                    FLUIGC.toast({ title: 'Erro no Envio:', message: msgErro, type: 'danger' });
+                                }
+                            },
+                            error: function (msg) {
+                                load.hide();
+                                FLUIGC.toast({ title: 'Falha Técnica:', message: 'Erro ao se comunicar com o Dataset de envio de e-mails.', type: 'danger' });
+                            }
+                        });
+                    },
+                    error: function (err) {
+                        load.hide();
+                        FLUIGC.toast({ title: 'Falha de Leitura:', message: 'Erro ao consultar o Form_Configuracoes_Admissao.', type: 'danger' });
+                    }
+                });
+            },
+            error: function (err) {
+                load.hide();
+                FLUIGC.toast({ title: 'Erro de Leitura:', message: 'Não foi possível buscar os dados públicos do candidato.', type: 'danger' });
+            }
+        });
     },
 
     /**
