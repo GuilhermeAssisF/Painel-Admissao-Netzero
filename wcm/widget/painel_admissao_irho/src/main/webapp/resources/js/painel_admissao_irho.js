@@ -185,10 +185,11 @@ var WidgetAdmissao = SuperWidget.extend({
             autoWidth: false,
             columns: [
                 // 0. ID ATS
-                { data: "codRequisicaoATS", className: "text-center", defaultContent: "-" },
+                { title: "ID ATS", data: "codRequisicaoATS", className: "text-center", defaultContent: "-" },
 
                 // 1. CANDIDATO + CONTATO
                 {
+                    title: "Candidato e Contato",
                     data: null,
                     render: function (row) {
                         var cpf = row.cpf ? row.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4") : "-";
@@ -205,6 +206,7 @@ var WidgetAdmissao = SuperWidget.extend({
 
                 // 2. VAGA + LOCAL + PREVISÃO
                 {
+                    title: "Detalhes da Vaga",
                     data: null,
                     render: function (row) {
                         var cnpj = row.cnpjFilial ? row.cnpjFilial.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, "$1.$2.$3/$4-$5") : "-";
@@ -222,8 +224,9 @@ var WidgetAdmissao = SuperWidget.extend({
                     }
                 },
 
-                // 3. INFO EXTRA (Nasc + Tipo + ERP + PCD)
+                // 3. INFO EXTRA
                 {
+                    title: "Info Extra",
                     data: null,
                     render: function (row) {
                         var nasc = row.dataNascimento ? moment(row.dataNascimento).format('DD/MM/YYYY') : "-";
@@ -241,28 +244,51 @@ var WidgetAdmissao = SuperWidget.extend({
 
                 // 4. STATUS FLUIG
                 {
+                    title: "Status Fluig",
                     data: null,
                     className: "text-center",
                     render: function (row) {
                         if (row.processoAbertoId) {
-                            // Dicionário de Atividades Mapeado do seu FLUIG-0002.process
                             var dicAtividades = {
-                                "97": { nome: "Admissão RH", cor: "info" },          // Azul
-                                "122": { nome: "Aguard. Candidato", cor: "warning" }, // Laranja
-                                "150": { nome: "Aguard. Correção", cor: "danger" },   // Vermelho
-                                "135": { nome: "Gerar Kit", cor: "info" },            // Azul
-                                "128": { nome: "Validar Kit", cor: "info" },          // Azul
-                                "129": { nome: "Assinatura Cand.", cor: "warning" },  // Laranja
-                                "138": { nome: "Integração RM", cor: "default" },     // Cinza
-                                "139": { nome: "Integração RM", cor: "default" },     // Cinza
-                                "104": { nome: "Finalizado", cor: "success" }         // Verde
+                                "97": { nome: "Admissão RH", cor: "info" },
+                                "122": { nome: "Aguard. Candidato", cor: "warning" },
+                                "150": { nome: "Aguard. Correção", cor: "danger" },
+                                "135": { nome: "Gerar Kit", cor: "info" },
+                                "128": { nome: "Validar Kit", cor: "info" },
+                                "129": { nome: "Assinatura Cand.", cor: "warning" },
+                                "138": { nome: "Integração RM", cor: "default" },
+                                "139": { nome: "Integração RM", cor: "default" },
+                                "104": { nome: "Finalizado", cor: "success" }
+                            };
+
+                            // Dicionário com os nomes reais das etapas da widget do candidato
+                            var dicPassosCandidato = {
+                                "1": "Passo 1 - Propostas",
+                                "2": "Passo 2 - LGPD",
+                                "3": "Passo 3 - Dados",
+                                "4": "Passo 4 - Formação",
+                                "5": "Passo 5 - Dependentes",
+                                "6": "Passo 6 - Filiação",
+                                "7": "Passo 7 - Benefícios",
+                                "8": "Passo 8 - Documentos",
+                                "9": "Passo 9 - Fim"
                             };
 
                             var atvId = row.atividadeFluig || "0";
                             var infoAtv = dicAtividades[atvId] || { nome: "Em Andamento (" + atvId + ")", cor: "default" };
 
+                            // Balão principal (Atividade)
+                            var htmlBadges = '<span class="label label-' + infoAtv.cor + '" style="white-space: normal; text-align: center; margin-bottom: 4px;">' + infoAtv.nome + '</span>';
+
+                            // Se estiver com o Candidato (122) e tiver passo salvo, cria o balão azul embaixo
+                            if (atvId === "122" && row.passoCandidato && row.passoCandidato !== "") {
+                                var nomePasso = dicPassosCandidato[row.passoCandidato] || ("Passo " + row.passoCandidato);
+
+                                htmlBadges += '<span class="label" style="background-color: #3b82f6 !important; color: #ffffff !important; white-space: normal; text-align: center; margin-bottom: 4px; font-size: 11px; border: none;">' + nomePasso + '</span>';
+                            }
+
                             return '<div class="stacked-cell" style="align-items: center;">' +
-                                '<span class="label label-' + infoAtv.cor + '" style="white-space: normal; text-align: center; margin-bottom: 4px;">' + infoAtv.nome + '</span>' +
+                                htmlBadges +
                                 '<span class="sub-text-muted">Fluig: ' + row.processoAbertoId + '</span>' +
                                 '</div>';
                         } else {
@@ -273,6 +299,7 @@ var WidgetAdmissao = SuperWidget.extend({
 
                 // 5. AÇÕES
                 {
+                    title: "Ações",
                     data: null, className: "text-center", orderable: false,
                     render: function (data, type, row) {
                         var rowJson = encodeURIComponent(JSON.stringify(row));
@@ -341,14 +368,15 @@ var WidgetAdmissao = SuperWidget.extend({
                         var cpfForm = r["cpfcnpj"] || r.cpfcnpj || r["cpfcnpjValue"] || r.cpfcnpjValue;
                         var idProc = r["idProcessoFluig"] || r.idProcessoFluig || r["cpNumeroSolicitacao"] || r.cpNumeroSolicitacao;
 
-                        // Só processa se realmente achou um CPF e um ID válido nessa linha
+                        var passoCandidato = r["cpPassoAtualCandidato"] || r.cpPassoAtualCandidato || r["cppassoatualcandidato"] || r.cppassoatualcandidato || "";
+
                         if (cpfForm && idProc && idProc !== "" && idProc !== "null") {
                             var cpfLimpo = String(cpfForm).replace(/\D/g, '');
 
-                            // Cria o de/para usando o CPF limpo como chave
                             mapProcessos[cpfLimpo] = {
                                 id: String(idProc),
-                                atividade: r["atividadeAtual"] || r.atividadeAtual || "0"
+                                atividade: r["atividadeAtual"] || r.atividadeAtual || "0",
+                                passo: passoCandidato
                             };
                         }
                     }
@@ -370,9 +398,11 @@ var WidgetAdmissao = SuperWidget.extend({
                         if (mapProcessos[atsCpfLimpo]) {
                             c.processoAbertoId = mapProcessos[atsCpfLimpo].id;
                             c.atividadeFluig = mapProcessos[atsCpfLimpo].atividade;
+                            c.passoCandidato = mapProcessos[atsCpfLimpo].passo; // Injeta o passo na linha
                         } else {
                             c.processoAbertoId = null;
                             c.atividadeFluig = null;
+                            c.passoCandidato = null;
                         }
                     }
                     that.table.clear().rows.add(registos).draw();
