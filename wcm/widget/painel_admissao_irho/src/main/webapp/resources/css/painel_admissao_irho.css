@@ -1,197 +1,574 @@
-/* ======================================================================================
-   CSS PAINEL DE ADMISSÃO DIGITAL
-   ====================================================================================== */
+/* ==========================================================================
+   TEMA SAAS MODERNO - PAINEL DE ADMISSÃO (CRM/ERP Style)
+   ========================================================================== */
 
-.filter-cards-row {
-    margin-top: 15px;
-    margin-bottom: 15px;
-    display: flex;
-    gap: 15px;
-    flex-wrap: wrap;
-    position: relative;
-    z-index: 100;
+/* 1. TIPOGRAFIA E VARIÁVEIS SAAS */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+    /* Cores da Marca (Integração com o Formulário Principal) */
+    --cor-primaria: #198754;
+    /* Verde principal */
+    --cor-primaria-light: #E8F5E9;
+    /* Verde muito claro (para backgrounds/hover) */
+    --cor-primaria-dark: #146c43;
+    /* Verde escuro (para textos em badges) */
+
+    /* Escala de Cinzentos SaaS (Tailwind style) */
+    --gray-50: #F9FAFB;
+    /* Fundo da Tabela / Cabeçalho */
+    --gray-100: #F3F4F6;
+    /* Linhas separadoras sutis */
+    --gray-200: #E5E7EB;
+    /* Bordas de cards e inputs */
+    --gray-500: #6B7280;
+    /* Textos secundários / Ícones */
+    --gray-800: #1F2937;
+    /* Títulos e Textos Principais */
+    --gray-900: #111827;
+    /* Preto suave */
+
+    /* Cores de Status (Pill Badges) */
+    --badge-delivered-bg: #D1FAE5;
+    /* Verde claro */
+    --badge-delivered-text: #065F46;
+    /* Verde escuro */
+    --badge-pending-bg: #FEF3C7;
+    /* Amarelo claro */
+    --badge-pending-text: #92400E;
+    /* Amarelo escuro */
+    --badge-neutral-bg: #F3F4F6;
+    /* Cinza claro */
+    --badge-neutral-text: #4B5563;
+    /* Cinza escuro */
+
+    /* Superfícies e Sombras */
+    --bg-body: #F3F4F6;
+    /* Fundo geral da página */
+    --bg-card: #FFFFFF;
+    /* Fundo branco puro dos cards */
+    --sombra-card: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+    /* Sombra difusa e elegante */
+    --sombra-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+
+    /* Arredondamentos */
+    --radius-card: 16px;
+    --radius-input: 8px;
+    --radius-pill: 999px;
 }
 
-.filter-card {
-    background: #fff;
-    border: 1px solid #ddd;
-    border-radius: 20px;
-    padding: 5px 15px;
-    display: flex;
-    align-items: center;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    transition: all 0.2s ease;
-    position: relative;
-    min-height: 40px;
+/* ==========================================================================
+   2. CONTAINER PRINCIPAL E FUNDO
+   ========================================================================== */
+/* Aplica o fundo suave à página inteira (se possível no Fluig) */
+body {
+    background-color: var(--bg-body) !important;
 }
 
-.filter-card:hover {
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-    transform: translateY(-1px);
+div[id^="WidgetAdmissao_"] {
+    background-color: var(--bg-card);
+    border-radius: var(--radius-card);
+    box-shadow: var(--sombra-card);
+    padding: 32px;
+    font-family: 'Inter', sans-serif;
+    border: 1px solid rgba(229, 231, 235, 0.5);
+    /* Borda quase invisível */
+    margin: 24px auto;
 }
 
-.filter-card.search-card {
-    min-width: 250px;
-    cursor: text;
-}
-
-.filter-card.search-card i {
-    color: #999;
-    margin-right: 8px;
-}
-
-.filter-card.search-card input {
-    border: none;
-    outline: none;
-    width: 100%;
-    background: transparent;
-    font-size: 14px;
-    color: #555;
-}
-
-.filter-card.dropdown-card {
-    cursor: pointer;
-    user-select: none;
-    padding-right: 10px;
-}
-
-.filter-card.dropdown-card .card-label {
-    font-weight: 600;
-    color: #58595b;
-    margin-right: 8px;
-}
-
-.filter-card.dropdown-card i.arrow {
-    font-size: 10px;
-    margin-left: 5px;
-    transition: transform 0.2s;
-}
-
-.filter-card-options {
-    position: absolute;
-    top: 110%;
-    left: 0;
-    background: #fff;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    padding: 10px;
-    z-index: 1000;
-    min-width: 160px;
-    display: none;
-}
-
-.filter-card-options.active {
-    display: block;
-}
-
-.filter-card-options label {
-    display: block;
-    width: 100%;
-    margin-bottom: 8px;
-    cursor: pointer;
-    font-weight: normal;
-    white-space: nowrap;
-}
-
-.filter-card-options label:last-child {
-    margin-bottom: 0;
-}
-
-.filter-card-options input[type="checkbox"] {
-    margin-right: 8px;
-    vertical-align: middle;
-}
-
-.filter-card.action-card {
-    cursor: pointer;
-    border: 1px solid #ffcdd2;
-    background-color: #ffebee;
-    transition: background-color 0.2s;
-}
-
-.filter-card.action-card:hover {
-    background-color: #ffcdd2;
-}
-
-.filter-card.action-card .card-label {
-    color: #d32f2f;
-    font-weight: 600;
-    margin-right: 0;
-}
-
+/* ==========================================================================
+   3. CABEÇALHO DA PÁGINA (Banner com Gradiente da Identidade Visual)
+   ========================================================================== */
 .custom-page-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 1px solid #eee;
-    padding-bottom: 10px;
-    margin-bottom: 20px;
-    flex-wrap: wrap;
-    gap: 15px;
-    position: relative; 
-    z-index: 101;
+    padding: 24px 32px;
+    background: linear-gradient(135deg, #129f4f 0%, #184427 100%); /* Gradiente do Formulário */
+    border-radius: var(--radius-card); /* Mesmos cantos arredondados */
+    box-shadow: 0 10px 30px -10px rgba(25, 135, 84, 0.4); /* Sombra difusa verde */
+    margin-bottom: 30px;
+
+    position: relative !important;
+    z-index: 105 !important;
 }
 
 .header-title h2 {
     margin: 0;
     font-size: 24px;
-    color: #444;
-    font-weight: 300;
+    font-weight: 700 !important;
+    color: #ffffff !important;
+    letter-spacing: 0.5px;
     display: flex;
     align-items: center;
+    text-shadow: 2px 2px 3px rgba(0, 0, 0, 0.255) !important;
 }
 
-.header-title i {
-    margin-right: 10px;
+/* Tratamento da Logo no Banner */
+.header-logo {
+    max-height: 45px;
+    object-fit: contain;
+    margin-right: 16px;
+    filter: drop-shadow(2px 4px 6px rgba(0, 0, 0, 0.5)) !important;
 }
 
-.header-actions {
+/* ==========================================================================
+   GLASSMORPHISM: Botão de Ação sobre o Fundo Verde
+   ========================================================================== */
+.header-glass-card {
+    background: rgba(255, 255, 255, 0.15) !important; /* Branco translúcido */
+    border: 1px solid rgba(255, 255, 255, 0.25) !important;
+    backdrop-filter: blur(8px); /* Efeito de vidro embaciado */
+    color: #ffffff !important;
+}
+
+.header-glass-card:hover {
+    background: rgba(255, 255, 255, 0.25) !important;
+    border-color: rgba(255, 255, 255, 0.5) !important;
+}
+
+.header-glass-card .card-label,
+.header-glass-card i {
+    color: #ffffff !important; /* Força os textos a ficarem brancos */
+}
+
+/* Fundo do Dropdown que abre para baixo (Mantemos branco para leitura) */
+.header-glass-card .filter-card-options {
+    background: #ffffff !important;
+    border: none;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+}
+
+.header-glass-card .filter-card-options .opt-page-len {
+    color: var(--gray-800) !important; /* Texto escuro dentro do menu aberto */
+}
+
+/* ==========================================================================
+   FILTROS SUPERIORES (Busca, Depto, etc)
+   ========================================================================== */
+.filter-cards-row {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.filter-card {
+    background: var(--bg-card);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-input);
+    padding: 8px 16px;
     display: flex;
     align-items: center;
-    gap: 10px;
+    color: var(--gray-800);
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.02);
 }
 
-.opt-page-len {
-    padding: 6px 10px;
-    border-radius: 4px;
-    transition: background 0.2s;
-    color: #555;
+.filter-card:hover {
+    border-color: #D1D5DB;
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
 }
 
-.opt-page-len:hover {
-    background-color: #f5f5f5;
-    color: #2196F3;
+.filter-card i {
+    color: var(--gray-500);
+    margin-right: 8px;
+    font-size: 14px;
+}
+
+.filter-card input {
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: 13px;
+    color: var(--gray-800);
+    width: 100%;
+}
+
+.filter-card input::placeholder { color: var(--gray-500); }
+
+/* Divisor visual entre a Pesquisa Global e as Datas */
+.filter-divider {
+    width: 1px;
+    height: 24px;
+    background-color: var(--gray-200);
+    margin: 0 8px;
+}
+
+/* ==========================================================================
+   SISTEMA DE GRELHA RESPONSIVA PARA OS FILTROS
+   ========================================================================== */
+.filter-cards-row.full-width {
+    display: flex;
+    flex-wrap: wrap;
+    width: 100% !important;
+    gap: 12px;
+}
+
+/* Força os cartões de filtro a esticarem e dividirem o espaço igualmente */
+.filter-cards-row.full-width .filter-card.expand {
+    flex: 1 1 0% !important; /* Cresce e encolhe por igual */
+    min-width: 150px; /* Garante que não ficam esmagados em telemóveis */
+    justify-content: space-between; /* Empurra setas para a direita */
+}
+
+/* Garante que os inputs dentro dos cartões esticados também ocupem tudo */
+.filter-cards-row.full-width .filter-card.expand input[type="text"] {
+    width: 100% !important;
+    flex: 1;
+}
+
+/* Botões e Divisores mantêm o seu tamanho original (não esticam) */
+.filter-cards-row.full-width .filter-card.action-card,
+.filter-cards-row.full-width .btn,
+.filter-cards-row.full-width .filter-divider {
+    flex: 0 0 auto !important;
+}
+
+/* Garante que o menu suspenso (opções) tenha a mesma largura do botão expandido */
+.filter-cards-row.full-width .dropdown-card.expand .filter-card-options {
+    width: 100% !important;
+    min-width: unset !important;
+}
+
+/* ==========================================================================
+   CORREÇÃO: MENU DROPDOWN (Exibir Registos e Filtros)
+   ========================================================================== */
+.filter-card {
+    position: relative !important; /* Essencial para o menu ancorar no botão */
+}
+
+.filter-card-options {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0; /* Abre alinhado à direita para não criar barra de rolagem */
+    background: #ffffff !important;
+    border: 1px solid #E5E7EB !important;
+    border-radius: 8px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15) !important;
+    min-width: 140px;
+    padding: 8px;
+    display: none; /* ESCONDE O MENU POR PADRÃO */
+    flex-direction: column;
+    gap: 4px;
+    z-index: 9999 !important; /* Força a ficar por cima da tabela */
+}
+
+/* O seu JavaScript já existente adiciona esta classe ao clicar */
+.filter-card-options.active {
+    display: flex !important; 
+}
+
+/* ==========================================================================
+   CORREÇÃO DE ALINHAMENTO: RADIO BUTTONS (Jornada / Diversidade)
+   ========================================================================== */
+.filter-card-options label {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    margin: 0 !important;
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--gray-800);
+    border-radius: 6px;
+    transition: background-color 0.2s ease;
+}
+
+.filter-card-options label:hover {
+    background-color: var(--gray-50);
+}
+
+.filter-card-options label input[type="radio"] {
+    margin: 0 !important; /* Remove as margens tortas do Bootstrap Fluig */
+    width: 14px;
+    height: 14px;
+    accent-color: var(--cor-primaria) !important; /* Deixa o selecionador Verde */
+    flex-shrink: 0; /* Impede a bolinha de ser esmagada */
     cursor: pointer;
 }
 
-/* --- CARDS DE TOTAIS (INFO CARDS) --- */
-.filter-card.info-card {
-    cursor: default;
-    background-color: #fafafa;
-    border: 1px solid #e0e0e0;
+/* Estilo elegante para os botões do menu */
+.opt-page-len {
+    padding: 8px 12px;
+    border-radius: 6px;
+    color: #1F2937 !important;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: background 0.2s;
 }
 
-.filter-card.info-card:hover {
-    transform: none;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+.opt-page-len:hover {
+    background-color: #F3F4F6 !important;
+    color: var(--cor-primaria) !important; /* Destaca a verde ao passar o rato */
 }
 
-.filter-card.info-card .card-label {
-    margin-right: 5px;
+/* ==========================================================================
+   BOTÃO APLICAR (Solid Green)
+   ========================================================================== */
+.btn-success.btn-rounded {
+    background-color: var(--cor-primaria) !important;
+    color: #ffffff !important;
+    border: none !important;
+    box-shadow: 0 4px 10px rgba(25, 135, 84, 0.2) !important;
+    transition: all 0.2s ease;
+}
+
+.btn-success.btn-rounded:hover {
+    background-color: var(--cor-primaria-dark) !important;
+    box-shadow: 0 6px 14px rgba(25, 135, 84, 0.3) !important;
+    transform: translateY(-1px);
+}
+
+.btn-success.btn-rounded i {
+    color: #ffffff !important;
+}
+
+/* ==========================================================================
+   4. TABELA SAAS (Cabeçalho, Linhas e Células)
+   ========================================================================== */
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+/* Linha de Cabeçalho */
+.table thead th {
+    background-color: var(--gray-50) !important;
+    color: var(--gray-500) !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    text-transform: none !important;
+    padding: 12px 10px !important; 
+    border: none !important;
+    border-bottom: 1px solid var(--gray-200) !important; 
+    white-space: nowrap;
+}
+
+/* Arredondar as pontas do cabeçalho */
+.table thead th:first-child { border-top-left-radius: 8px; }
+.table thead th:last-child { border-top-right-radius: 8px; }
+
+
+/* ==========================================================================
+   EFEITO ZEBRA E HOVER ULTRA SUAVES (Vencendo o DataTables e o Fluig)
+   ========================================================================== */
+
+/* 1. Zebra: Linhas Ímpares (Cinza extremamente claro) */
+.fluig-style-guide .table-striped > tbody > tr.odd,
+.fluig-style-guide .table-striped > tbody > tr:nth-of-type(odd) {
+    background-color: #f5f5f5 !important; 
+}
+
+/* 2. Zebra: Linhas Pares (Branco Puro) */
+.fluig-style-guide .table-striped > tbody > tr.even,
+.fluig-style-guide .table-striped > tbody > tr:nth-of-type(even) {
+    background-color: #FFFFFF !important; 
+}
+
+/* 3. MATAR A COR DE ORDENAÇÃO DO DATATABLES: 
+   O DataTables tenta pintar o fundo da coluna que você clicou para ordenar.
+   Isso força a célula a ficar transparente e respeitar a cor da linha (tr) acima. */
+.fluig-style-guide table.dataTable tbody tr td,
+.fluig-style-guide table.dataTable tbody tr td.sorting_1,
+.fluig-style-guide table.dataTable tbody tr td.sorting_2,
+.fluig-style-guide table.dataTable tbody tr td.sorting_3 {
+    background-color: transparent !important;
+}
+
+/* Linha divisória fina na base de TODAS as linhas */
+.fluig-style-guide .table > tbody > tr {
+    border-bottom: 1.5px solid #dedede !important; 
+    transition: background-color 0.2s ease;
+}
+
+/* 4. Hover (Tom "Gelo" elegante ao passar o rato) */
+.fluig-style-guide .table-striped > tbody > tr:hover,
+.fluig-style-guide table.dataTable tbody tr:hover,
+.fluig-style-guide table.dataTable.display tbody tr:hover.odd,
+.fluig-style-guide table.dataTable.display tbody tr:hover.even {
+    background-color: #F1F5F9 !important; 
+}
+
+/* ==========================================================================
+   CÉLULAS DA TABELA
+   ========================================================================== */
+.fluig-style-guide .table td,
+.table td {
+    border: none !important; /* Força a remoção de bordas laterais do Bootstrap */
+    padding: 14px 10px !important; 
+    vertical-align: middle !important;
+    font-size: 13px !important; 
+    color: var(--gray-800) !important;
+}
+
+/* ==========================================================================
+   5. STACKING (Agrupamento) E TIPOGRAFIA DE DADOS
+   ========================================================================== */
+.stacked-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+/* Nomes e Textos Principais */
+.stacked-cell strong {
+    font-weight: 500;
+    color: var(--gray-900);
+    font-size: 14px;
+}
+
+/* Legendas (CPF, CNPJ, etc) */
+.sub-text {
+    font-size: 12px;
+    color: var(--gray-500);
+}
+
+.sub-text-muted {
+    font-size: 11px;
+    color: #9CA3AF;
+}
+
+.link-email {
+    color: var(--gray-800);
+    text-decoration: none;
+    font-weight: 400;
+}
+
+.link-email:hover {
+    color: var(--cor-primaria);
+    text-decoration: underline;
+}
+
+/* Alinhamentos Padrão (Conforme Briefing) */
+.text-center {
+    text-align: center !important;
+}
+
+.text-right {
+    text-align: right !important;
+    justify-content: flex-end;
+}
+
+/* ==========================================================================
+   6. STATUS E LABELS (PILL BADGES)
+   ========================================================================== */
+.label-success,
+.label-warning,
+.label-default,
+.label-jornada {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-pill) !important;
+    padding: 4px 12px !important;
+    font-size: 12px !important;
+    font-weight: 500 !important;
+    border: none !important;
+    letter-spacing: 0;
+    width: max-content;
+}
+
+/* Status: Delivered / Sim / Concluído */
+.label-success {
+    background-color: var(--badge-delivered-bg) !important;
+    color: var(--badge-delivered-text) !important;
+}
+
+/* Status: Pending / Atenção */
+.label-warning {
+    background-color: var(--badge-pending-bg) !important;
+    color: var(--badge-pending-text) !important;
+}
+
+/* Status: Neutral / Não / CLT */
+.label-default,
+.label-jornada {
+    background-color: var(--badge-neutral-bg) !important;
+    color: var(--badge-neutral-text) !important;
+}
+
+/* ==========================================================================
+   7. PAGINAÇÃO E RODAPÉ DA TABELA
+   ========================================================================== */
+.dataTables_wrapper .dataTables_paginate {
+    margin-top: 24px;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 4px;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button {
+    border-radius: 6px !important;
+    border: 1px solid transparent !important;
+    padding: 6px 12px !important;
+    color: var(--gray-500) !important;
+    background: transparent !important;
+    font-weight: 500;
+    font-size: 13px;
+    transition: all 0.2s ease;
+}
+
+/* Botão não-ativo em Hover */
+.dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+    background: var(--gray-100) !important;
+    color: var(--gray-800) !important;
+}
+
+/* Página Atual Destacada (Pill verde clara com texto verde escuro) */
+.dataTables_wrapper .dataTables_paginate .paginate_button.current,
+.dataTables_wrapper .dataTables_paginate .paginate_button.current:hover {
+    background: var(--cor-primaria-light) !important;
+    color: var(--cor-primaria-dark) !important;
+    border-color: transparent !important;
     font-weight: 600;
-    color: #555;
 }
 
-.filter-card.info-card .card-value {
-    font-weight: bold;
-    font-size: 15px;
+/* Info de Registros (Ex: Mostrando 1 de 10) */
+.dataTables_wrapper .dataTables_info {
+    color: var(--gray-500);
+    font-size: 13px;
+    margin-top: 24px;
 }
 
-.filter-card.info-card.card-aberto .card-value { color: #FF9800; }
-.filter-card.info-card.card-baixado .card-value { color: #4CAF50; }
-.filter-card.info-card.card-total .card-value { color: #2196F3; }
+/* ==========================================================================
+   8. BOTÕES DE AÇÃO NA TABELA
+   ========================================================================== */
+.btn-sm.btn-rounded {
+    border-radius: var(--radius-input) !important;
+    /* Arredondamento suave de 8px */
+    padding: 6px 14px !important;
+    font-size: 12px !important;
+    font-weight: 500 !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+    border: 1px solid transparent !important;
+    transition: all 0.2s ease;
+}
 
-.filter-card.info-card i {
-    margin-right: 8px;
+.btn-primary.btn-rounded {
+    background-color: var(--bg-card) !important;
+    color: var(--gray-800) !important;
+    border-color: var(--gray-200) !important;
+}
+
+.btn-primary.btn-rounded:hover {
+    background-color: var(--gray-50) !important;
+    color: var(--cor-primaria) !important;
+    border-color: var(--cor-primaria) !important;
+}
+
+.btn-primary.btn-rounded i {
+    color: var(--cor-primaria);
+}
+
+/* Esconde Setas Padrão de Ordenação do DataTables para ficar mais clean */
+table.dataTable thead .sorting,
+table.dataTable thead .sorting_asc,
+table.dataTable thead .sorting_desc {
+    background-image: none !important;
 }
