@@ -419,15 +419,22 @@ var WidgetAdmissao = SuperWidget.extend({
                         var nomeCandidato = r["txtNomeColaborador"] || r.txtNomeColaborador || r["txtNomeSocial"] || r.txtNomeSocial || "Sem Nome";
                         var emailCandidato = r["txtEmail"] || r.txtEmail || r["cpEmailCandidato"] || r.cpEmailCandidato || "";
                         var telefone = r["txtCELULAR"] || r.txtCELULAR || "";
-                        var cargo = r["FUN_CARGO"] || r.FUN_CARGO || "";
-                        var departamento = r["FUN_SECAO_IDDESC_AD"] || r.FUN_SECAO_IDDESC_AD || "";
+                        var cargo = r["FUN_IDDESCFUN"] || r.FUN_IDDESCFUN || r["FUN_CARGO"] || r.FUN_CARGO || "-";
+                        var departamento = r["FUN_SECAO_IDDESC_AD"] || r.FUN_SECAO_IDDESC_AD || "-";
                         var dataAdmissao = r["FUN_ADMISSAO"] || r.FUN_ADMISSAO || "";
                         var cnpjFilial = r["FUN_CNPJ_FILIAL"] || r.FUN_CNPJ_FILIAL || "";
+                        var dataNasc = r["dtDataNascColaborador"] || r.dtDataNascColaborador || "";
+                        var jornada = r["cpJornadaAdmissao"] || r.cpJornadaAdmissao || "-";
                         
-                        // O Fluig guarda a dataAdmissão como DD/MM/YYYY, o seu painel lê YYYY-MM-DD
+                        // O Fluig guarda as datas como DD/MM/YYYY, o seu painel (moment.js) espera YYYY-MM-DD
                         var dtContratacao = "";
                         if (dataAdmissao && dataAdmissao.indexOf("/") > -1) {
                             dtContratacao = dataAdmissao.split('/').reverse().join('-');
+                        }
+
+                        var dtNascimento = "";
+                        if (dataNasc && dataNasc.indexOf("/") > -1) {
+                            dtNascimento = dataNasc.split('/').reverse().join('-');
                         }
 
                         if (cpfForm && idProc && idProc !== "" && idProc !== "null") {
@@ -437,13 +444,15 @@ var WidgetAdmissao = SuperWidget.extend({
                                 id: String(idProc),
                                 atividade: r["atividadeAtual"] || r.atividadeAtual || "0",
                                 passo: passoCandidato,
-                                // Guardando os dados extras
+                                // Guardando os dados extras capturados
                                 nome: nomeCandidato,
                                 email: emailCandidato,
                                 telefone: telefone,
                                 cargo: cargo,
                                 departamento: departamento,
                                 dataContratacao: dtContratacao,
+                                dataNascimento: dtNascimento,
+                                jornada: jornada,
                                 cnpjFilial: cnpjFilial,
                                 processadoNoATS: false // Usado para saber se veio do ATS ou se é manual
                             };
@@ -498,7 +507,6 @@ var WidgetAdmissao = SuperWidget.extend({
                         if (processoLocal.processadoNoATS === false) {
                             
                             var manualRecord = {
-                                // O segredo está aqui: tags <br> para pular linha e um tamanho de fonte sutil
                                 codRequisicaoATS: '<div style="line-height: 1.3; font-size: 11px; color: #6b7280; font-weight: 500;">Processo<br>Aberto<br>Manualmente</div>',
                                 nomeCandidato: processoLocal.nome,
                                 cpf: cpfKey, 
@@ -507,6 +515,8 @@ var WidgetAdmissao = SuperWidget.extend({
                                 cargoAprovado: processoLocal.cargo,
                                 departamento: processoLocal.departamento,
                                 dataContratacao: processoLocal.dataContratacao,
+                                dataNascimento: processoLocal.dataNascimento,
+                                jornada: processoLocal.jornada,
                                 cnpjFilial: processoLocal.cnpjFilial,
                                 
                                 processoAbertoId: processoLocal.id,
