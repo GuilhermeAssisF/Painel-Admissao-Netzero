@@ -333,12 +333,12 @@ var WidgetAdmissao = SuperWidget.extend({
                             return botoes;
 
                         } else if (row.processoAbertoId && isCancelado) {
-                            // PROCESSO FOI CANCELADO (STATUS = 1) -> Dois botões!
+                            // PROCESSO FOI CANCELADO (STATUS = 1) -> Dois botões com novo layout
                             return '<div style="display: flex; flex-direction: column; gap: 4px; align-items: stretch;">' +
-                                '<button class="btn btn-default btn-sm btn-rounded" style="width: 100%; font-size: 11px; padding: 4px 8px;" title="Ver Histórico Cancelado" onclick="WidgetAdmissao.instance().abrirProcessoExistente(\'' + row.processoAbertoId + '\')">' +
+                                '<button class="btn btn-warning btn-sm btn-rounded" style="width: 100%; font-size: 11px; padding: 4px 8px;" title="Ver Histórico Cancelado" onclick="WidgetAdmissao.instance().abrirProcessoExistente(\'' + row.processoAbertoId + '\')">' +
                                 '<i class="fluigicon fluigicon-info-sign"></i> Ver Solicitação</button>' +
-                                '<button class="btn btn-danger btn-sm btn-rounded" style="width: 100%; font-size: 11px; padding: 4px 8px;" title="Iniciar Novo Processo" onclick="WidgetAdmissao.instance().iniciarProcessoAdmissao(\'' + rowJson + '\')">' +
-                                '<i class="fluigicon fluigicon-refresh"></i> Iniciar Nova</button>' +
+                                '<button class="btn btn-primary btn-sm btn-rounded" style="width: 100%; font-size: 11px; padding: 4px 8px;" title="Iniciar Novo Processo" onclick="WidgetAdmissao.instance().iniciarProcessoAdmissao(\'' + rowJson + '\')">' +
+                                '<i class="fluigicon fluigicon-play-circle"></i> Iniciar Nova</button>' +
                                 '</div>';
 
                         } else if (row.processoAbertoId && isFinalizado) {
