@@ -233,11 +233,22 @@ var WidgetAdmissao = SuperWidget.extend({
                         var isPCD = (row.deficienciaFisica === "1" || row.deficienciaAuditiva === "1" || row.deficienciaVisual === "1" || row.deficienciaIntelectual === "1");
                         var labelPcd = isPCD ? '<span class="label label-success" style="margin-top:4px;">PCD</span>' : '';
 
+                        var reqERP = row.codRequisicaoERP || '-';
+                        var btnRequisicao = '';
+
+                        // Se existe uma requisição no ERP, adiciona o botão
+                        if (reqERP !== '-' && reqERP !== '') {
+                            var rowJson = encodeURIComponent(JSON.stringify(row));
+                            btnRequisicao = '<button class="btn btn-info btn-xs btn-rounded" style="margin-top: 6px; font-size: 10px; width: 100%;" onclick="WidgetAdmissao.instance().verDadosRequisicao(\'' + rowJson + '\')">' +
+                                '<i class="fluigicon fluigicon-zoom-in"></i> Ver Requisição</button>';
+                        }
+
                         return '<div class="stacked-cell">' +
                             '<span class="sub-text">Nasc: ' + nasc + '</span>' +
                             '<span class="sub-text">Tipo Req: ' + (row.tipoRequisicao || '-') + '</span>' +
-                            '<span class="sub-text">Req ERP: <strong>' + (row.codRequisicaoERP || '-') + '</strong></span>' +
+                            '<span class="sub-text">Req ERP: <strong>' + reqERP + '</strong></span>' +
                             labelPcd +
+                            btnRequisicao +
                             '</div>';
                     }
                 },
@@ -414,7 +425,7 @@ var WidgetAdmissao = SuperWidget.extend({
                         var cpfForm = r["cpfcnpj"] || r.cpfcnpj || r["cpfcnpjValue"] || r.cpfcnpjValue;
                         var idProc = r["idProcessoFluig"] || r.idProcessoFluig || r["cpNumeroSolicitacao"] || r.cpNumeroSolicitacao;
                         var passoCandidato = r["cpPassoAtualCandidato"] || r.cpPassoAtualCandidato || r["cppassoatualcandidato"] || r.cppassoatualcandidato || "";
-                        
+
                         // Campos complementares para desenhar a linha manual no painel
                         var nomeCandidato = r["txtNomeColaborador"] || r.txtNomeColaborador || r["txtNomeSocial"] || r.txtNomeSocial || "Sem Nome";
                         var emailCandidato = r["txtEmail"] || r.txtEmail || r["cpEmailCandidato"] || r.cpEmailCandidato || "";
@@ -425,7 +436,7 @@ var WidgetAdmissao = SuperWidget.extend({
                         var cnpjFilial = r["FUN_CNPJ_FILIAL"] || r.FUN_CNPJ_FILIAL || "";
                         var dataNasc = r["dtDataNascColaborador"] || r.dtDataNascColaborador || "";
                         var jornada = r["cpJornadaAdmissao"] || r.cpJornadaAdmissao || "-";
-                        
+
                         // O Fluig guarda as datas como DD/MM/YYYY, o seu painel (moment.js) espera YYYY-MM-DD
                         var dtContratacao = "";
                         if (dataAdmissao && dataAdmissao.indexOf("/") > -1) {
@@ -439,7 +450,7 @@ var WidgetAdmissao = SuperWidget.extend({
 
                         if (cpfForm && idProc && idProc !== "" && idProc !== "null") {
                             var cpfLimpo = String(cpfForm).replace(/\D/g, '');
-                            
+
                             mapProcessos[cpfLimpo] = {
                                 id: String(idProc),
                                 atividade: r["atividadeAtual"] || r.atividadeAtual || "0",
@@ -463,13 +474,13 @@ var WidgetAdmissao = SuperWidget.extend({
                 // 2. Busca os candidatos no ATS
                 var dsData = DatasetFactory.getDataset("ds_irho_atsAprovados", null, null, null);
                 var registosATS = dsData.values || [];
-                var finalRegistros = []; 
+                var finalRegistros = [];
 
                 if (registosATS.length > 0 && registosATS[0].ERROR && registosATS[0].ERROR !== "") {
                     FLUIGC.toast({ title: 'Aviso do ATS:', message: registosATS[0].ERROR, type: 'warning' });
                     registosATS = []; // Zera, mas não limpa a tabela ainda para poder exibir os Manuais
                 }
-                    
+
                 var constraintsStatus = [];
                 var mapLinhasTabela = {};
 
@@ -481,21 +492,21 @@ var WidgetAdmissao = SuperWidget.extend({
                     if (mapProcessos[atsCpfLimpo]) {
                         c.processoAbertoId = mapProcessos[atsCpfLimpo].id;
                         c.atividadeFluig = mapProcessos[atsCpfLimpo].atividade;
-                        c.passoCandidato = mapProcessos[atsCpfLimpo].passo; 
-                        c.statusProcesso = "0"; 
-                        
-                        mapProcessos[atsCpfLimpo].processadoNoATS = true; 
-                        
+                        c.passoCandidato = mapProcessos[atsCpfLimpo].passo;
+                        c.statusProcesso = "0";
+
+                        mapProcessos[atsCpfLimpo].processadoNoATS = true;
+
                         constraintsStatus.push(DatasetFactory.createConstraint("workflowProcessPK.processInstanceId", c.processoAbertoId, c.processoAbertoId, ConstraintType.SHOULD));
-                        mapLinhasTabela[c.processoAbertoId] = c; 
-                        
+                        mapLinhasTabela[c.processoAbertoId] = c;
+
                     } else {
                         c.processoAbertoId = null;
                         c.atividadeFluig = null;
                         c.passoCandidato = null;
                         c.statusProcesso = null;
                     }
-                    
+
                     finalRegistros.push(c);
                 }
 
@@ -503,13 +514,13 @@ var WidgetAdmissao = SuperWidget.extend({
                 for (var cpfKey in mapProcessos) {
                     if (mapProcessos.hasOwnProperty(cpfKey)) {
                         var processoLocal = mapProcessos[cpfKey];
-                        
+
                         if (processoLocal.processadoNoATS === false) {
-                            
+
                             var manualRecord = {
                                 codRequisicaoATS: '<div style="line-height: 1.3; font-size: 11px; color: #6b7280; font-weight: 500;">Processo<br>Aberto<br>Manualmente</div>',
                                 nomeCandidato: processoLocal.nome,
-                                cpf: cpfKey, 
+                                cpf: cpfKey,
                                 email: processoLocal.email,
                                 telefone: processoLocal.telefone,
                                 cargoAprovado: processoLocal.cargo,
@@ -518,12 +529,12 @@ var WidgetAdmissao = SuperWidget.extend({
                                 dataNascimento: processoLocal.dataNascimento,
                                 jornada: processoLocal.jornada,
                                 cnpjFilial: processoLocal.cnpjFilial,
-                                
+
                                 processoAbertoId: processoLocal.id,
                                 atividadeFluig: processoLocal.atividade,
                                 passoCandidato: processoLocal.passo,
-                                statusProcesso: "0", 
-                                
+                                statusProcesso: "0",
+
                                 tipoRequisicao: "Manual",
                                 codRequisicaoERP: "-",
                                 deficienciaFisica: "0",
@@ -532,10 +543,10 @@ var WidgetAdmissao = SuperWidget.extend({
                                 deficienciaIntelectual: "0",
                                 isManual: true
                             };
-                            
+
                             constraintsStatus.push(DatasetFactory.createConstraint("workflowProcessPK.processInstanceId", manualRecord.processoAbertoId, manualRecord.processoAbertoId, ConstraintType.SHOULD));
                             mapLinhasTabela[manualRecord.processoAbertoId] = manualRecord;
-                            
+
                             finalRegistros.push(manualRecord);
                         }
                     }
@@ -549,14 +560,14 @@ var WidgetAdmissao = SuperWidget.extend({
                             var rowStatus = dsStatus.values[s];
                             var pId = String(rowStatus["workflowProcessPK.processInstanceId"]);
                             if (mapLinhasTabela[pId]) {
-                                mapLinhasTabela[pId].statusProcesso = String(rowStatus["status"]); 
+                                mapLinhasTabela[pId].statusProcesso = String(rowStatus["status"]);
                             }
                         }
                     }
                 }
 
                 that.table.clear().rows.add(finalRegistros).draw();
-                
+
             } catch (err) {
                 console.error("Erro na busca dos datasets:", err);
                 FLUIGC.toast({ title: 'Erro:', message: 'Falha ao conectar com os Datasets.', type: 'danger' });
@@ -773,5 +784,152 @@ var WidgetAdmissao = SuperWidget.extend({
         // URL nativa do Fluig para abrir tarefas existentes
         var urlFluig = '/portal/p/' + tenant + '/pageworkflowview?app_ecm_workflowview_detailsProcessInstanceID=' + processInstanceId;
         window.open(urlFluig, '_blank');
+    },
+
+    /**
+     * Busca a Coligada, consulta o RM e abre o Modal com Botão de Fechar Vermelho e Bold
+     */
+    verDadosRequisicao: function (rowJsonEncoded) {
+        var c = JSON.parse(decodeURIComponent(rowJsonEncoded));
+        var idReq = String(c.codRequisicaoERP || "").trim();
+        var cnpjBuscaLimpo = String(c.cnpjFilial || "").replace(/\D/g, '');
+
+        if (!idReq || idReq === "" || idReq === "-") {
+            FLUIGC.toast({ title: 'Aviso:', message: 'Não há requisição vinculada.', type: 'warning' });
+            return;
+        }
+
+        var load = FLUIGC.loading(window, { textMessage: 'Sincronizando com TOTVS RM...' });
+        load.show();
+
+        // 1. Busca Coligada via CNPJ
+        var url = WCMAPI.getServerURL() + '/api/public/ecm/dataset/datasets';
+        $.ajax({
+            url: url,
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ name: "ds_irho_empresaFilial" }), 
+            success: function (res) {
+                var codColigadaEncontrada = null;
+                if (res.content && res.content.values) {
+                    var filiais = res.content.values;
+                    for (var i = 0; i < filiais.length; i++) {
+                        var cnpjRM = String(filiais[i]["CNPJ_FILIAL"] || filiais[i]["cnpj_filial"] || filiais[i]["CNPJ"] || "").replace(/\D/g, '');
+                        if (cnpjRM === cnpjBuscaLimpo) {
+                            codColigadaEncontrada = String(filiais[i]["ID_EMPRESA"] || filiais[i]["id_empresa"] || "");
+                            break;
+                        }
+                    }
+                }
+
+                if (!codColigadaEncontrada) {
+                    load.hide();
+                    FLUIGC.toast({ title: 'Erro:', message: 'Coligada não identificada.', type: 'warning' });
+                    return;
+                }
+
+                // 2. Consulta Dataset de Aumento de Quadro
+                var cColigada = DatasetFactory.createConstraint("CODCOLIGADA", codColigadaEncontrada, codColigadaEncontrada, ConstraintType.MUST);
+                var cIdReq = DatasetFactory.createConstraint("IDREQ", idReq, idReq, ConstraintType.MUST);
+
+                DatasetFactory.getDataset("ds_irho_aumentoQuadro", null, [cColigada, cIdReq], null, {
+                    success: function(dsReq) {
+                        load.hide();
+                        if (dsReq && dsReq.values && dsReq.values.length > 0) {
+                            var r = dsReq.values[0];
+
+                            var labels = {
+                                "CODCOLREQUISICAO": "Coligada Req.", "IDREQ": "ID Requisição", "JUSTIFICATIVA": "Justificativa/Vaga", "DATAABERTURA": "Abertura",
+                                "CODCOLREQUISITANTE": "Coligada Solicitante", "CHAPAREQUISITANTE": "Chapa Solicitante", "CODATENDIMENTO": "Tipo Atendimento", "CODLOCAL": "Localidade",
+                                "CODSTATUS": "Status", "DATACANCELAMENTO": "Cancelamento", "DATAPREVISTA": "Previsão", "DATACONCLUSAO": "Conclusão",
+                                "NUMVAGAS": "Total de Vagas", "CODFILIAL": "Cód. Filial", "CODSECAO": "Cód. Seção", "CODFUNCAO": "Cód. Função", 
+                                "CODTABELASALARIAL": "Tab. Salarial", "CODNIVELSALARIAL": "Nível Salarial", "CODFAIXASALARIAL": "Faixa Salarial", "VLRSALARIO": "Salário Base",
+                                "RECCREATEDBY": "Criado por", "RECCREATEDON": "Criado em", "RECMODIFIEDBY": "Alterado por", "RECMODIFIEDON": "Alterado em",
+                                "CODCOLHIERARQUIAREQUISITANTE": "Col. Hierarquia", "IDHIERARQUIAREQUISITANTE": "ID Hierarquia", "CODCOLHIERARQUIADESTINO": "Col. Destino", "IDHIERARQUIADESTINO": "ID Destino",
+                                "CODCCUSTO": "Centro de Custo", "IDITEMCONTABIL": "Item Contábil", "IDCLASSEVALOR": "Classe Valor", "TEMEXCECAOORCAMENTO": "Exceção Orçam."
+                            };
+
+                            var fmt = function(key) {
+                                var val = r[key] || r[key.toLowerCase()] || "-";
+                                if (val === "null") val = "-";
+                                if (key.indexOf("DATA") > -1 || (key.indexOf("REC") > -1 && key.indexOf("ON") > -1)) {
+                                    if (val !== "-") val = moment(val).format("DD/MM/YYYY");
+                                }
+                                if (key === "VLRSALARIO" && val !== "-") {
+                                    val = parseFloat(val).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
+                                }
+                                return val;
+                            };
+
+                            // CSS AJUSTADO: Botão de fechar vermelho e grosso
+                            var htmlStyles = [
+                                '<style>',
+                                '#modal-dados-requisicao .modal-header, #modal-dados-requisicao .modal-footer { display: none !important; }',
+                                '#modal-dados-requisicao .modal-content { border-radius: 20px; border: none; background: #f9fafb; }',
+                                '.react-wrapper { font-family: "Inter", sans-serif; }',
+                                '.react-head { background: #fff; padding: 24px; border-bottom: 1px solid #f3f4f6; display: flex; justify-content: space-between; align-items: center; border-radius: 20px 20px 0 0; }',
+                                '.section-title { font-size: 11px; font-weight: 700; color: #3b82f6; text-transform: uppercase; letter-spacing: 1px; margin: 20px 0 10px 0; padding-left: 8px; border-left: 3px solid #3b82f6; }',
+                                '.group-card { background: #fff; border-radius: 12px; border: 1px solid #f3f4f6; padding: 8px 16px; margin-bottom: 16px; }',
+                                '.react-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f9fafb; }',
+                                '.react-row:last-child { border-bottom: none; }',
+                                '.react-label { font-size: 12px; color: #6b7280; font-weight: 500; }',
+                                '.react-value { font-size: 12px; color: #111827; font-weight: 600; text-align: right; }',
+                                
+                                // ESTILIZAÇÃO DO BOTÃO SOLICITADA
+                                '.close-btn { ',
+                                '   font-size: 32px; ',
+                                '   color: #ef4444; ', // Vermelho vivo
+                                '   font-weight: 900; ', // Bem grosso
+                                '   cursor: pointer; ',
+                                '   border: none; ',
+                                '   background: none; ',
+                                '   line-height: 0.6; ',
+                                '   transition: transform 0.2s, color 0.2s; ',
+                                '   display: flex; ',
+                                '   align-items: center; ',
+                                '   justify-content: center; ',
+                                '   width: 32px; height: 32px; ',
+                                '}',
+                                '.close-btn:hover { color: #b91c1c; transform: scale(1.1); }',
+                                '</style>'
+                            ].join('');
+
+                            var renderRow = function(key) {
+                                return '<div class="react-row"><span class="react-label">' + labels[key] + '</span><span class="react-value">' + fmt(key) + '</span></div>';
+                            };
+
+                            var htmlBody = '<div class="react-wrapper">' +
+                                '<div class="react-head"><div><h3 style="margin:0; font-weight:700;">' + fmt("JUSTIFICATIVA") + '</h3><span style="color:#6b7280; font-size:12px;">Solicitação ' + fmt("IDREQ") + '</span></div>' +
+                                // CORREÇÃO DO ONCLICK: Usando a instância diretamente via seletor do Fluig
+                                '<button class="close-btn" onclick="$(\'#modal-dados-requisicao\').find(\'button[data-dismiss=modal]\').click();">&times;</button></div>' +
+                                '<div style="padding: 0 24px 24px 24px; max-height: 70vh; overflow-y: auto;">' +
+                                    '<div class="section-title">Identificação e Status</div>' +
+                                    '<div class="group-card">' + renderRow("CODSTATUS") + renderRow("DATAABERTURA") + renderRow("NUMVAGAS") + renderRow("CODATENDIMENTO") + '</div>' +
+                                    '<div class="section-title">Localização e Estrutura</div>' +
+                                    '<div class="group-card">' + renderRow("CODCOLREQUISICAO") + renderRow("CODFILIAL") + renderRow("CODSECAO") + renderRow("CODCCUSTO") + renderRow("CODLOCAL") + '</div>' +
+                                    '<div class="section-title">Cargo e Salário</div>' +
+                                    '<div class="group-card">' + renderRow("CODFUNCAO") + renderRow("VLRSALARIO") + renderRow("CODTABELASALARIAL") + renderRow("CODNIVELSALARIAL") + renderRow("CODFAIXASALARIAL") + renderRow("TEMEXCECAOORCAMENTO") + '</div>' +
+                                    '<div class="section-title">Prazos</div>' +
+                                    '<div class="group-card">' + renderRow("DATAPREVISTA") + renderRow("DATACONCLUSAO") + renderRow("DATACANCELAMENTO") + '</div>' +
+                                    '<div class="section-title">Hierarquia e Solicitante</div>' +
+                                    '<div class="group-card">' + renderRow("CHAPAREQUISITANTE") + renderRow("IDHIERARQUIAREQUISITANTE") + renderRow("IDHIERARQUIADESTINO") + '</div>' +
+                                    '<div class="section-title">Auditoria</div>' +
+                                    '<div class="group-card">' + renderRow("RECCREATEDBY") + renderRow("RECCREATEDON") + renderRow("RECMODIFIEDBY") + renderRow("RECMODIFIEDON") + '</div>' +
+                                '</div></div>';
+
+                            FLUIGC.modal({
+                                content: htmlStyles + htmlBody,
+                                id: 'modal-dados-requisicao',
+                                size: 'large'
+                            });
+
+                        } else {
+                            FLUIGC.toast({ title: 'Aviso:', message: 'Requisição não encontrada.', type: 'warning' });
+                        }
+                    },
+                    error: function(err) { load.hide(); FLUIGC.toast({ title: 'Erro:', message: 'Falha no dataset.', type: 'danger' }); }
+                });
+            }
+        });
     }
 });
