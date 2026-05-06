@@ -436,60 +436,112 @@ var WidgetAdmissao = SuperWidget.extend({
     /**
      * Redireciona para a tela de Início do Processo preenchendo APENAS os dados solicitados.
      */
+    /**
+     * Redireciona para a tela de Início do Processo preenchendo APENAS os dados solicitados.
+     */
     iniciarProcessoAdmissao: function (rowJsonEncoded) {
         var c = JSON.parse(decodeURIComponent(rowJsonEncoded));
-
-        // Formata apenas a Data de Admissão/Contratação (pois removemos a Data de Nascimento)
         var dtContBR = c.dataContratacao ? c.dataContratacao.split('-').reverse().join('/') : "";
+        
+        // 1. Limpa o CNPJ que vem do ATS para ter apenas números (Ex: 45455135000180)
+        var cnpjBuscaLimpo = String(c.cnpjFilial || "").replace(/\D/g, '');
 
-        var atsData = {
-            // 1. CAMPOS TÉCNICOS
-            "txtOrigemAdmissao": "TOTVS_ATS",
-            "txtIdCandidatoATS": c.idCandidatoATS || "",
-            "cpNumRequisicaoERP": c.codRequisicaoERP || "",
-            "cpNumRequisicaoATS": c.codRequisicaoATS || "",
+        var load = FLUIGC.loading(window, { textMessage: 'Validando CNPJ e buscando Filial no RM...' });
+        load.show();
 
-            // 2. DADOS BÁSICOS
-            "cpfcnpj": c.cpf || "",
+        // 2. Busca todas as filiais no dataset ponte via AJAX para não travar a tela
+        var url = WCMAPI.getServerURL() + '/api/public/ecm/dataset/datasets';
+        
+        $.ajax({
+            url: url,
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ name: "ds_irho_empresaFilial" }), // Sem constraints para trazer todas as opções
+            success: function (res) {
+                load.hide();
+                var filialSelecionada = null;
 
-            // NOVO: Nome vai para o Nome Social para não conflitar com a SERPRO
-            "txtNomeSocial": c.nomeCandidato || "",
+                if (res.content && res.content.values && res.content.values.length > 0) {
+                    var filiais = res.content.values;
+                    
+                    // 3. Percorre o dataset deparando os CNPJs
+                    for (var i = 0; i < filiais.length; i++) {
+                        var rowFilial = filiais[i];
+                        
+                        // Pega o CNPJ da Filial retornado pelo RM (Lida com letras maiúsculas/minúsculas da API do Fluig)
+                        var cnpjRM = String(rowFilial["CNPJ_FILIAL"] || rowFilial["cnpj_filial"] || "").replace(/\D/g, '');
+                        
+                        // Se o CNPJ_FILIAL estiver vazio na linha, tenta olhar o CNPJ da Coligada (Matriz)
+                        if (cnpjRM === "") {
+                            cnpjRM = String(rowFilial["CNPJ"] || rowFilial["cnpj"] || "").replace(/\D/g, '');
+                        }
+                        
+                        // DE/PARA: Se os números baterem perfeitamente, achamos a filial correspondente!
+                        if (cnpjRM !== "" && cnpjRM === cnpjBuscaLimpo) {
+                            filialSelecionada = rowFilial;
+                            console.log("[DEBUG] Match Perfeito de CNPJ Encontrado: ", filialSelecionada);
+                            break; // Encontrou, interrompe o laço
+                        }
+                    }
+                }
 
-            "txtEmail": c.email || "",
-            "cpEmailCandidato": c.email || "",
+                if (!filialSelecionada && cnpjBuscaLimpo !== "") {
+                    FLUIGC.toast({ title: 'Atenção:', message: 'Nenhuma filial encontrada para o CNPJ ' + c.cnpjFilial + '. O campo no formulário ficará em branco.', type: 'warning' });
+                }
 
-            // NOVO: Telefone vai para o Celular 1
-            "txtCELULAR": c.telefone || "",
+                // 4. Monta o pacote de dados injetando o resultado do de/para
+                var atsData = {
+                    "txtOrigemAdmissao": "TOTVS_ATS",
+                    "txtIdCandidatoATS": c.idCandidatoATS || "",
+                    "cpNumRequisicaoERP": c.codRequisicaoERP || "",
+                    "cpNumRequisicaoATS": c.codRequisicaoATS || "",
 
-            "FUN_ADMISSAO": dtContBR,
-            "cpDataPrevisaoAdmissao": dtContBR,
-            "cpJornadaAdmissao": c.jornada || "CLT",
+                    "cpfcnpj": c.cpf || "",                          
+                    "txtNomeSocial": c.nomeCandidato || "",                           
+                    "txtEmail": c.email || "",
+                    "cpEmailCandidato": c.email || "",                           
+                    "txtCELULAR": c.telefone || "",                           
+                    "FUN_ADMISSAO": dtContBR,
+                    "cpDataPrevisaoAdmissao": dtContBR,
+                    "cpJornadaAdmissao": c.jornada || "CLT",
+                                 
+                    "cpDeficienciaFisica": c.deficienciaFisica === "1" ? "Sim" : "Não",
+                    "cpDeficienciaAuditiva": c.deficienciaAuditiva === "1" ? "Sim" : "Não",
+                    "cpDeficienciaVisual": c.deficienciaVisual === "1" ? "Sim" : "Não",
+                    "cpDeficienciaIntelectual": c.deficienciaIntelectual === "1" ? "Sim" : "Não",
+                    "cand_possui_deficiencia": (c.deficienciaFisica === "1" || c.deficienciaAuditiva === "1" || c.deficienciaVisual === "1" || c.deficienciaIntelectual === "1") ? "Sim" : "Não",
+                    
+                    "CNPJ_FILIAL_ATS": c.cnpjFilial || "",
 
-            // 3. DEFICIÊNCIAS
-            "cpDeficienciaFisica": c.deficienciaFisica === "1" ? "Sim" : "Não",
-            "cpDeficienciaAuditiva": c.deficienciaAuditiva === "1" ? "Sim" : "Não",
-            "cpDeficienciaVisual": c.deficienciaVisual === "1" ? "Sim" : "Não",
-            "cpDeficienciaIntelectual": c.deficienciaIntelectual === "1" ? "Sim" : "Não",
-            "cand_possui_deficiencia": (c.deficienciaFisica === "1" || c.deficienciaAuditiva === "1" || c.deficienciaVisual === "1" || c.deficienciaIntelectual === "1") ? "Sim" : "Não",
+                    // =====================================================================
+                    // INJEÇÃO DA FILIAL ENCONTRADA NO ZOOM
+                    // =====================================================================
+                    "IDDESC_EMPRESAFILIAL": filialSelecionada ? (filialSelecionada["IDDESC_EMPFILIALCOM"] || filialSelecionada["iddesc_empfilialcom"] || "") : "",
+                    "FUN_EMPRESA": filialSelecionada ? (filialSelecionada["ID_EMPRESA"] || filialSelecionada["id_empresa"] || "") : "",
+                    "FUN_FILIAL": filialSelecionada ? (filialSelecionada["ID_FILIAL"] || filialSelecionada["id_filial"] || "") : "",
+                    "FUN_NOMECOMERCIAL_FILIAL": filialSelecionada ? (filialSelecionada["NOMECOMERCIAL_FILIAL"] || filialSelecionada["nomecomercial_filial"] || "") : "",
+                    "FUN_CNPJ_FILIAL": filialSelecionada ? (filialSelecionada["CNPJ_FILIAL"] || filialSelecionada["cnpj_filial"] || "") : "",
+                    "FUN_LOGRADOURO_FILIAL": filialSelecionada ? (filialSelecionada["LOGRADOURO_FILIAL"] || filialSelecionada["logradouro_filial"] || "") : "",
+                    "FUN_BAIRRO_FILIAL": filialSelecionada ? (filialSelecionada["BAIRRO_FILIAL"] || filialSelecionada["bairro_filial"] || "") : "",
+                    "FUN_CIDADE_FILIAL": filialSelecionada ? (filialSelecionada["CIDADE_FILIAL"] || filialSelecionada["cidade_filial"] || "") : "",
+                    "FUN_ESTADO_FILIAL": filialSelecionada ? (filialSelecionada["ESTADO_FILIAL"] || filialSelecionada["estado_filial"] || "") : "",
 
-            // 4. CHAVE ESPECIAL PARA O ZOOM (O formulário vai usar isto para pesquisar)
-            "CNPJ_FILIAL_ATS": c.cnpjFilial || "",
+                    "_dadosOriginais": c
+                };
 
-            // Empacota o envelope original intacto para a "Cola do RH"
-            "_dadosOriginais": c
-        };
+                localStorage.setItem("FLUIG_ATS_DATA", JSON.stringify(atsData));
 
-        localStorage.setItem("FLUIG_ATS_DATA", JSON.stringify(atsData));
-
-        var tenant = WCMAPI.tenantCode || "1";
-        var urlFluig = '/portal/p/' + tenant + '/pageworkflowview?processID=FLUIG-0002%20-%20Admissão%20IRHO';
-
-        window.open(urlFluig, '_blank');
+                var tenant = WCMAPI.tenantCode || "1";
+                var urlFluig = '/portal/p/' + tenant + '/pageworkflowview?processID=FLUIG-0002%20-%20Admissão%20IRHO';
+                window.open(urlFluig, '_blank');
+            },
+            error: function (err) {
+                load.hide();
+                FLUIGC.toast({ title: 'Erro de Comunicação:', message: 'Falha ao consultar as Filiais no Fluig.', type: 'danger' });
+            }
+        });
     },
 
-    /**
-     * Função para reenviar o link para o candidato baseado na etapa em que ele está parado
-     */
     /**
      * Função para reenviar o link para o candidato baseado na etapa em que ele está parado
      */
