@@ -388,6 +388,9 @@ var WidgetAdmissao = SuperWidget.extend({
     /**
      * Carrega os dados reais do Dataset de forma síncrona/blindada.
      */
+    /**
+     * Carrega os dados reais do Dataset de forma síncrona/blindada.
+     */
     carregarDados: function () {
         var that = this;
         var load = FLUIGC.loading(window, { textMessage: 'Carregando dados e validando processos ativos...' });
@@ -407,16 +410,42 @@ var WidgetAdmissao = SuperWidget.extend({
                     for (var i = 0; i < dsAbertos.values.length; i++) {
                         var r = dsAbertos.values[i];
 
+                        // Capturando os dados básicos do Fluig para caso o processo seja manual
                         var cpfForm = r["cpfcnpj"] || r.cpfcnpj || r["cpfcnpjValue"] || r.cpfcnpjValue;
                         var idProc = r["idProcessoFluig"] || r.idProcessoFluig || r["cpNumeroSolicitacao"] || r.cpNumeroSolicitacao;
                         var passoCandidato = r["cpPassoAtualCandidato"] || r.cpPassoAtualCandidato || r["cppassoatualcandidato"] || r.cppassoatualcandidato || "";
+                        
+                        // Campos complementares para desenhar a linha manual no painel
+                        var nomeCandidato = r["txtNomeColaborador"] || r.txtNomeColaborador || r["txtNomeSocial"] || r.txtNomeSocial || "Sem Nome";
+                        var emailCandidato = r["txtEmail"] || r.txtEmail || r["cpEmailCandidato"] || r.cpEmailCandidato || "";
+                        var telefone = r["txtCELULAR"] || r.txtCELULAR || "";
+                        var cargo = r["FUN_CARGO"] || r.FUN_CARGO || "";
+                        var departamento = r["FUN_SECAO_IDDESC_AD"] || r.FUN_SECAO_IDDESC_AD || "";
+                        var dataAdmissao = r["FUN_ADMISSAO"] || r.FUN_ADMISSAO || "";
+                        var cnpjFilial = r["FUN_CNPJ_FILIAL"] || r.FUN_CNPJ_FILIAL || "";
+                        
+                        // O Fluig guarda a dataAdmissão como DD/MM/YYYY, o seu painel lê YYYY-MM-DD
+                        var dtContratacao = "";
+                        if (dataAdmissao && dataAdmissao.indexOf("/") > -1) {
+                            dtContratacao = dataAdmissao.split('/').reverse().join('-');
+                        }
 
                         if (cpfForm && idProc && idProc !== "" && idProc !== "null") {
                             var cpfLimpo = String(cpfForm).replace(/\D/g, '');
+                            
                             mapProcessos[cpfLimpo] = {
                                 id: String(idProc),
                                 atividade: r["atividadeAtual"] || r.atividadeAtual || "0",
-                                passo: passoCandidato
+                                passo: passoCandidato,
+                                // Guardando os dados extras
+                                nome: nomeCandidato,
+                                email: emailCandidato,
+                                telefone: telefone,
+                                cargo: cargo,
+                                departamento: departamento,
+                                dataContratacao: dtContratacao,
+                                cnpjFilial: cnpjFilial,
+                                processadoNoATS: false // Usado para saber se veio do ATS ou se é manual
                             };
                         }
                     }
@@ -424,58 +453,100 @@ var WidgetAdmissao = SuperWidget.extend({
 
                 // 2. Busca os candidatos no ATS
                 var dsData = DatasetFactory.getDataset("ds_irho_atsAprovados", null, null, null);
-                var registos = dsData.values || [];
+                var registosATS = dsData.values || [];
+                var finalRegistros = []; 
 
-                if (registos.length > 0 && registos[0].ERROR && registos[0].ERROR !== "") {
-                    FLUIGC.toast({ title: 'Aviso do ATS:', message: registos[0].ERROR, type: 'warning' });
-                    that.table.clear().draw();
-                } else {
+                if (registosATS.length > 0 && registosATS[0].ERROR && registosATS[0].ERROR !== "") {
+                    FLUIGC.toast({ title: 'Aviso do ATS:', message: registosATS[0].ERROR, type: 'warning' });
+                    registosATS = []; // Zera, mas não limpa a tabela ainda para poder exibir os Manuais
+                }
+                    
+                var constraintsStatus = [];
+                var mapLinhasTabela = {};
 
-                    // =========================================================================
-                    // NOVIDADE: Buscando o Status Nativo do Fluig de forma Otimizada
-                    // =========================================================================
-                    var constraintsStatus = [];
-                    var mapLinhasTabela = {};
+                // 3. PRIMEIRO PASSO: Cruza os dados do ATS com os processos abertos
+                for (var j = 0; j < registosATS.length; j++) {
+                    var c = registosATS[j];
+                    var atsCpfLimpo = (c.cpf || "").replace(/\D/g, '');
 
-                    // 3. Primeiro cruzamento: Injeta os dados do formulário e coleta os IDs
-                    for (var j = 0; j < registos.length; j++) {
-                        var c = registos[j];
-                        var atsCpfLimpo = (c.cpf || "").replace(/\D/g, '');
+                    if (mapProcessos[atsCpfLimpo]) {
+                        c.processoAbertoId = mapProcessos[atsCpfLimpo].id;
+                        c.atividadeFluig = mapProcessos[atsCpfLimpo].atividade;
+                        c.passoCandidato = mapProcessos[atsCpfLimpo].passo; 
+                        c.statusProcesso = "0"; 
+                        
+                        mapProcessos[atsCpfLimpo].processadoNoATS = true; 
+                        
+                        constraintsStatus.push(DatasetFactory.createConstraint("workflowProcessPK.processInstanceId", c.processoAbertoId, c.processoAbertoId, ConstraintType.SHOULD));
+                        mapLinhasTabela[c.processoAbertoId] = c; 
+                        
+                    } else {
+                        c.processoAbertoId = null;
+                        c.atividadeFluig = null;
+                        c.passoCandidato = null;
+                        c.statusProcesso = null;
+                    }
+                    
+                    finalRegistros.push(c);
+                }
 
-                        if (mapProcessos[atsCpfLimpo]) {
-                            c.processoAbertoId = mapProcessos[atsCpfLimpo].id;
-                            c.atividadeFluig = mapProcessos[atsCpfLimpo].atividade;
-                            c.passoCandidato = mapProcessos[atsCpfLimpo].passo;
-                            c.statusProcesso = "0"; // Nasce como '0' (Aberto) por padrão
-
-                            // Cria uma constraint do tipo SHOULD (funciona como um "OR" / "IN" no SQL) para não pesar o banco
-                            constraintsStatus.push(DatasetFactory.createConstraint("workflowProcessPK.processInstanceId", c.processoAbertoId, c.processoAbertoId, ConstraintType.SHOULD));
-                            mapLinhasTabela[c.processoAbertoId] = c; // Guarda a referência para atualizar a linha
-
-                        } else {
-                            c.processoAbertoId = null;
-                            c.atividadeFluig = null;
-                            c.passoCandidato = null;
-                            c.statusProcesso = null;
+                // 4. SEGUNDO PASSO: Resgata os CPFs que o Fluig tem mas o ATS não enviou (OS MANUAIS)
+                for (var cpfKey in mapProcessos) {
+                    if (mapProcessos.hasOwnProperty(cpfKey)) {
+                        var processoLocal = mapProcessos[cpfKey];
+                        
+                        if (processoLocal.processadoNoATS === false) {
+                            
+                            var manualRecord = {
+                                // O segredo está aqui: tags <br> para pular linha e um tamanho de fonte sutil
+                                codRequisicaoATS: '<div style="line-height: 1.3; font-size: 11px; color: #6b7280; font-weight: 500;">Processo<br>Aberto<br>Manualmente</div>',
+                                nomeCandidato: processoLocal.nome,
+                                cpf: cpfKey, 
+                                email: processoLocal.email,
+                                telefone: processoLocal.telefone,
+                                cargoAprovado: processoLocal.cargo,
+                                departamento: processoLocal.departamento,
+                                dataContratacao: processoLocal.dataContratacao,
+                                cnpjFilial: processoLocal.cnpjFilial,
+                                
+                                processoAbertoId: processoLocal.id,
+                                atividadeFluig: processoLocal.atividade,
+                                passoCandidato: processoLocal.passo,
+                                statusProcesso: "0", 
+                                
+                                tipoRequisicao: "Manual",
+                                codRequisicaoERP: "-",
+                                deficienciaFisica: "0",
+                                deficienciaAuditiva: "0",
+                                deficienciaVisual: "0",
+                                deficienciaIntelectual: "0",
+                                isManual: true
+                            };
+                            
+                            constraintsStatus.push(DatasetFactory.createConstraint("workflowProcessPK.processInstanceId", manualRecord.processoAbertoId, manualRecord.processoAbertoId, ConstraintType.SHOULD));
+                            mapLinhasTabela[manualRecord.processoAbertoId] = manualRecord;
+                            
+                            finalRegistros.push(manualRecord);
                         }
                     }
+                }
 
-                    // 4. Segundo cruzamento: Bate no Dataset nativo apenas para os IDs na tela
-                    if (constraintsStatus.length > 0) {
-                        var dsStatus = DatasetFactory.getDataset("workflowProcess", ["workflowProcessPK.processInstanceId", "status"], constraintsStatus, null);
-                        if (dsStatus && dsStatus.values) {
-                            for (var s = 0; s < dsStatus.values.length; s++) {
-                                var rowStatus = dsStatus.values[s];
-                                var pId = String(rowStatus["workflowProcessPK.processInstanceId"]);
-                                if (mapLinhasTabela[pId]) {
-                                    mapLinhasTabela[pId].statusProcesso = String(rowStatus["status"]); // 1 = Cancelado, 2 = Finalizado
-                                }
+                // 5. TERCEIRO PASSO: Bate no Dataset nativo para checar status (Cancelado/Finalizado)
+                if (constraintsStatus.length > 0) {
+                    var dsStatus = DatasetFactory.getDataset("workflowProcess", ["workflowProcessPK.processInstanceId", "status"], constraintsStatus, null);
+                    if (dsStatus && dsStatus.values) {
+                        for (var s = 0; s < dsStatus.values.length; s++) {
+                            var rowStatus = dsStatus.values[s];
+                            var pId = String(rowStatus["workflowProcessPK.processInstanceId"]);
+                            if (mapLinhasTabela[pId]) {
+                                mapLinhasTabela[pId].statusProcesso = String(rowStatus["status"]); 
                             }
                         }
                     }
-
-                    that.table.clear().rows.add(registos).draw();
                 }
+
+                that.table.clear().rows.add(finalRegistros).draw();
+                
             } catch (err) {
                 console.error("Erro na busca dos datasets:", err);
                 FLUIGC.toast({ title: 'Erro:', message: 'Falha ao conectar com os Datasets.', type: 'danger' });
