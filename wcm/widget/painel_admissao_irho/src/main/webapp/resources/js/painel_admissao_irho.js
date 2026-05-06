@@ -249,6 +249,25 @@ var WidgetAdmissao = SuperWidget.extend({
                     className: "text-center",
                     render: function (row) {
                         if (row.processoAbertoId) {
+                            var statusProcesso = String(row.statusProcesso || "0");
+
+                            // 1. Processo Cancelado
+                            if (statusProcesso === "1") {
+                                return '<div class="stacked-cell" style="align-items: center;">' +
+                                    '<span class="label label-danger" style="white-space: normal; text-align: center; margin-bottom: 4px; padding: 4px 8px;">Solicitação Cancelada</span>' +
+                                    '<span class="sub-text-muted">Fluig: ' + row.processoAbertoId + '</span>' +
+                                    '</div>';
+                            }
+
+                            // 2. Processo Finalizado
+                            if (statusProcesso === "2") {
+                                return '<div class="stacked-cell" style="align-items: center;">' +
+                                    '<span class="label label-success" style="white-space: normal; text-align: center; margin-bottom: 4px; padding: 4px 8px;">Solicitação Finalizada</span>' +
+                                    '<span class="sub-text-muted">Fluig: ' + row.processoAbertoId + '</span>' +
+                                    '</div>';
+                            }
+
+                            // 3. Processo em Andamento (Status 0) - Lógica original das atividades
                             var dicAtividades = {
                                 "97": { nome: "Admissão RH", cor: "info" },
                                 "122": { nome: "Aguard. Candidato", cor: "warning" },
@@ -261,29 +280,19 @@ var WidgetAdmissao = SuperWidget.extend({
                                 "104": { nome: "Finalizado", cor: "success" }
                             };
 
-                            // Dicionário com os nomes reais das etapas da widget do candidato
                             var dicPassosCandidato = {
-                                "1": "Passo 1 - Propostas",
-                                "2": "Passo 2 - LGPD",
-                                "3": "Passo 3 - Dados",
-                                "4": "Passo 4 - Formação",
-                                "5": "Passo 5 - Dependentes",
-                                "6": "Passo 6 - Filiação",
-                                "7": "Passo 7 - Benefícios",
-                                "8": "Passo 8 - Documentos",
-                                "9": "Passo 9 - Fim"
+                                "1": "Passo 1 - Propostas", "2": "Passo 2 - LGPD", "3": "Passo 3 - Dados",
+                                "4": "Passo 4 - Formação", "5": "Passo 5 - Dependentes", "6": "Passo 6 - Filiação",
+                                "7": "Passo 7 - Benefícios", "8": "Passo 8 - Documentos", "9": "Passo 9 - Fim"
                             };
 
                             var atvId = row.atividadeFluig || "0";
                             var infoAtv = dicAtividades[atvId] || { nome: "Em Andamento (" + atvId + ")", cor: "default" };
 
-                            // Balão principal (Atividade)
                             var htmlBadges = '<span class="label label-' + infoAtv.cor + '" style="white-space: normal; text-align: center; margin-bottom: 4px;">' + infoAtv.nome + '</span>';
 
-                            // Se estiver com o Candidato (122) e tiver passo salvo, cria o balão azul embaixo
                             if (atvId === "122" && row.passoCandidato && row.passoCandidato !== "") {
                                 var nomePasso = dicPassosCandidato[row.passoCandidato] || ("Passo " + row.passoCandidato);
-
                                 htmlBadges += '<span class="label" style="background-color: #3b82f6 !important; color: #ffffff !important; white-space: normal; text-align: center; margin-bottom: 4px; font-size: 11px; border: none;">' + nomePasso + '</span>';
                             }
 
@@ -304,16 +313,18 @@ var WidgetAdmissao = SuperWidget.extend({
                     render: function (data, type, row) {
                         var rowJson = encodeURIComponent(JSON.stringify(row));
 
-                        if (row.processoAbertoId) {
-                            // gap reduzido para 4px para deixar os botões mais próximos
+                        var statusProcesso = String(row.statusProcesso || "0");
+                        var isCancelado = (statusProcesso === "1");
+                        var isFinalizado = (statusProcesso === "2");
+
+                        if (row.processoAbertoId && !isCancelado && !isFinalizado) {
+                            // PROCESSO NORMAL (ABERTO = 0)
                             var botoes = '<div style="display: flex; flex-direction: column; gap: 4px; align-items: stretch;">' +
                                 '<button class="btn btn-warning btn-sm btn-rounded" style="width: 100%; font-size: 11px; padding: 4px 8px;" title="Abrir Processo" onclick="WidgetAdmissao.instance().abrirProcessoExistente(\'' + row.processoAbertoId + '\')">' +
                                 '<i class="fluigicon fluigicon-info-sign"></i> Ver Solicitação</button>';
 
-                            // Regra: Botão de E-mail só aparece se for uma etapa do candidato
                             var atvsCandidato = ["122", "150", "129"];
                             if (atvsCandidato.indexOf(String(row.atividadeFluig)) !== -1) {
-                                // Estilo compactado aplicado aqui também
                                 botoes += '<button class="btn btn-success btn-sm btn-rounded" style="width: 100%; font-size: 11px; padding: 4px 8px;" title="Reenviar Link por E-mail" onclick="WidgetAdmissao.instance().reenviarEmailCandidato(\'' + rowJson + '\')">' +
                                     '<i class="fluigicon fluigicon-envelope"></i> Reenviar E-mail</button>';
                             }
@@ -321,7 +332,24 @@ var WidgetAdmissao = SuperWidget.extend({
                             botoes += '</div>';
                             return botoes;
 
+                        } else if (row.processoAbertoId && isCancelado) {
+                            // PROCESSO FOI CANCELADO (STATUS = 1) -> Dois botões!
+                            return '<div style="display: flex; flex-direction: column; gap: 4px; align-items: stretch;">' +
+                                '<button class="btn btn-default btn-sm btn-rounded" style="width: 100%; font-size: 11px; padding: 4px 8px;" title="Ver Histórico Cancelado" onclick="WidgetAdmissao.instance().abrirProcessoExistente(\'' + row.processoAbertoId + '\')">' +
+                                '<i class="fluigicon fluigicon-info-sign"></i> Ver Solicitação</button>' +
+                                '<button class="btn btn-danger btn-sm btn-rounded" style="width: 100%; font-size: 11px; padding: 4px 8px;" title="Iniciar Novo Processo" onclick="WidgetAdmissao.instance().iniciarProcessoAdmissao(\'' + rowJson + '\')">' +
+                                '<i class="fluigicon fluigicon-refresh"></i> Iniciar Nova</button>' +
+                                '</div>';
+
+                        } else if (row.processoAbertoId && isFinalizado) {
+                            // PROCESSO FOI FINALIZADO COM SUCESSO (STATUS = 2)
+                            return '<div style="display: flex; flex-direction: column; align-items: stretch;">' +
+                                '<button class="btn btn-success btn-sm btn-rounded" style="width: 100%; font-size: 11px; padding: 4px 8px;" title="Ver Processo Concluído" onclick="WidgetAdmissao.instance().abrirProcessoExistente(\'' + row.processoAbertoId + '\')">' +
+                                '<i class="fluigicon fluigicon-check-circle-on"></i> Ver Solicitação</button>' +
+                                '</div>';
+
                         } else {
+                            // NUNCA FOI INICIADO
                             return '<div style="display: flex; flex-direction: column; align-items: stretch;">' +
                                 '<button class="btn btn-primary btn-sm btn-rounded" style="width: 100%; font-size: 11px; padding: 4px 8px;" onclick="WidgetAdmissao.instance().iniciarProcessoAdmissao(\'' + rowJson + '\')">' +
                                 '<i class="fluigicon fluigicon-play-circle"></i> Iniciar</button>' +
@@ -368,12 +396,10 @@ var WidgetAdmissao = SuperWidget.extend({
         setTimeout(function () {
             try {
                 // 1. Busca os processos pelo seu NOVO DATASET avançado
-                // A constraint metadata#active garante que só vamos ler a versão atual do formulário (evita lentidão e duplicidade)
                 var constraintsForm = [
                     DatasetFactory.createConstraint("metadata#active", "true", "true", ConstraintType.MUST)
                 ];
 
-                // ATENÇÃO: Se você deu um nome diferente para o dataset ponte, altere aqui:
                 var dsAbertos = DatasetFactory.getDataset("ds_dados_publicos_candidato", null, constraintsForm, null);
                 var mapProcessos = {};
 
@@ -381,15 +407,12 @@ var WidgetAdmissao = SuperWidget.extend({
                     for (var i = 0; i < dsAbertos.values.length; i++) {
                         var r = dsAbertos.values[i];
 
-                        // Blindagem: Busca o CPF e o ID exatamente com os "names" que estão no seu view.ftl do formulário
                         var cpfForm = r["cpfcnpj"] || r.cpfcnpj || r["cpfcnpjValue"] || r.cpfcnpjValue;
                         var idProc = r["idProcessoFluig"] || r.idProcessoFluig || r["cpNumeroSolicitacao"] || r.cpNumeroSolicitacao;
-
                         var passoCandidato = r["cpPassoAtualCandidato"] || r.cpPassoAtualCandidato || r["cppassoatualcandidato"] || r.cppassoatualcandidato || "";
 
                         if (cpfForm && idProc && idProc !== "" && idProc !== "null") {
                             var cpfLimpo = String(cpfForm).replace(/\D/g, '');
-
                             mapProcessos[cpfLimpo] = {
                                 id: String(idProc),
                                 atividade: r["atividadeAtual"] || r.atividadeAtual || "0",
@@ -407,7 +430,14 @@ var WidgetAdmissao = SuperWidget.extend({
                     FLUIGC.toast({ title: 'Aviso do ATS:', message: registos[0].ERROR, type: 'warning' });
                     that.table.clear().draw();
                 } else {
-                    // 3. Cruza as informações: Injeta ID e Atividade no JSON do ATS se der Match
+
+                    // =========================================================================
+                    // NOVIDADE: Buscando o Status Nativo do Fluig de forma Otimizada
+                    // =========================================================================
+                    var constraintsStatus = [];
+                    var mapLinhasTabela = {};
+
+                    // 3. Primeiro cruzamento: Injeta os dados do formulário e coleta os IDs
                     for (var j = 0; j < registos.length; j++) {
                         var c = registos[j];
                         var atsCpfLimpo = (c.cpf || "").replace(/\D/g, '');
@@ -415,13 +445,35 @@ var WidgetAdmissao = SuperWidget.extend({
                         if (mapProcessos[atsCpfLimpo]) {
                             c.processoAbertoId = mapProcessos[atsCpfLimpo].id;
                             c.atividadeFluig = mapProcessos[atsCpfLimpo].atividade;
-                            c.passoCandidato = mapProcessos[atsCpfLimpo].passo; // Injeta o passo na linha
+                            c.passoCandidato = mapProcessos[atsCpfLimpo].passo;
+                            c.statusProcesso = "0"; // Nasce como '0' (Aberto) por padrão
+
+                            // Cria uma constraint do tipo SHOULD (funciona como um "OR" / "IN" no SQL) para não pesar o banco
+                            constraintsStatus.push(DatasetFactory.createConstraint("workflowProcessPK.processInstanceId", c.processoAbertoId, c.processoAbertoId, ConstraintType.SHOULD));
+                            mapLinhasTabela[c.processoAbertoId] = c; // Guarda a referência para atualizar a linha
+
                         } else {
                             c.processoAbertoId = null;
                             c.atividadeFluig = null;
                             c.passoCandidato = null;
+                            c.statusProcesso = null;
                         }
                     }
+
+                    // 4. Segundo cruzamento: Bate no Dataset nativo apenas para os IDs na tela
+                    if (constraintsStatus.length > 0) {
+                        var dsStatus = DatasetFactory.getDataset("workflowProcess", ["workflowProcessPK.processInstanceId", "status"], constraintsStatus, null);
+                        if (dsStatus && dsStatus.values) {
+                            for (var s = 0; s < dsStatus.values.length; s++) {
+                                var rowStatus = dsStatus.values[s];
+                                var pId = String(rowStatus["workflowProcessPK.processInstanceId"]);
+                                if (mapLinhasTabela[pId]) {
+                                    mapLinhasTabela[pId].statusProcesso = String(rowStatus["status"]); // 1 = Cancelado, 2 = Finalizado
+                                }
+                            }
+                        }
+                    }
+
                     that.table.clear().rows.add(registos).draw();
                 }
             } catch (err) {
@@ -442,7 +494,7 @@ var WidgetAdmissao = SuperWidget.extend({
     iniciarProcessoAdmissao: function (rowJsonEncoded) {
         var c = JSON.parse(decodeURIComponent(rowJsonEncoded));
         var dtContBR = c.dataContratacao ? c.dataContratacao.split('-').reverse().join('/') : "";
-        
+
         // 1. Limpa o CNPJ que vem do ATS para ter apenas números (Ex: 45455135000180)
         var cnpjBuscaLimpo = String(c.cnpjFilial || "").replace(/\D/g, '');
 
@@ -451,7 +503,7 @@ var WidgetAdmissao = SuperWidget.extend({
 
         // 2. Busca todas as filiais no dataset ponte via AJAX para não travar a tela
         var url = WCMAPI.getServerURL() + '/api/public/ecm/dataset/datasets';
-        
+
         $.ajax({
             url: url,
             type: 'POST',
@@ -463,19 +515,19 @@ var WidgetAdmissao = SuperWidget.extend({
 
                 if (res.content && res.content.values && res.content.values.length > 0) {
                     var filiais = res.content.values;
-                    
+
                     // 3. Percorre o dataset deparando os CNPJs
                     for (var i = 0; i < filiais.length; i++) {
                         var rowFilial = filiais[i];
-                        
+
                         // Pega o CNPJ da Filial retornado pelo RM (Lida com letras maiúsculas/minúsculas da API do Fluig)
                         var cnpjRM = String(rowFilial["CNPJ_FILIAL"] || rowFilial["cnpj_filial"] || "").replace(/\D/g, '');
-                        
+
                         // Se o CNPJ_FILIAL estiver vazio na linha, tenta olhar o CNPJ da Coligada (Matriz)
                         if (cnpjRM === "") {
                             cnpjRM = String(rowFilial["CNPJ"] || rowFilial["cnpj"] || "").replace(/\D/g, '');
                         }
-                        
+
                         // DE/PARA: Se os números baterem perfeitamente, achamos a filial correspondente!
                         if (cnpjRM !== "" && cnpjRM === cnpjBuscaLimpo) {
                             filialSelecionada = rowFilial;
@@ -496,21 +548,21 @@ var WidgetAdmissao = SuperWidget.extend({
                     "cpNumRequisicaoERP": c.codRequisicaoERP || "",
                     "cpNumRequisicaoATS": c.codRequisicaoATS || "",
 
-                    "cpfcnpj": c.cpf || "",                          
-                    "txtNomeSocial": c.nomeCandidato || "",                           
+                    "cpfcnpj": c.cpf || "",
+                    "txtNomeSocial": c.nomeCandidato || "",
                     "txtEmail": c.email || "",
-                    "cpEmailCandidato": c.email || "",                           
-                    "txtCELULAR": c.telefone || "",                           
+                    "cpEmailCandidato": c.email || "",
+                    "txtCELULAR": c.telefone || "",
                     "FUN_ADMISSAO": dtContBR,
                     "cpDataPrevisaoAdmissao": dtContBR,
                     "cpJornadaAdmissao": c.jornada || "CLT",
-                                 
+
                     "cpDeficienciaFisica": c.deficienciaFisica === "1" ? "Sim" : "Não",
                     "cpDeficienciaAuditiva": c.deficienciaAuditiva === "1" ? "Sim" : "Não",
                     "cpDeficienciaVisual": c.deficienciaVisual === "1" ? "Sim" : "Não",
                     "cpDeficienciaIntelectual": c.deficienciaIntelectual === "1" ? "Sim" : "Não",
                     "cand_possui_deficiencia": (c.deficienciaFisica === "1" || c.deficienciaAuditiva === "1" || c.deficienciaVisual === "1" || c.deficienciaIntelectual === "1") ? "Sim" : "Não",
-                    
+
                     "CNPJ_FILIAL_ATS": c.cnpjFilial || "",
 
                     // =====================================================================
