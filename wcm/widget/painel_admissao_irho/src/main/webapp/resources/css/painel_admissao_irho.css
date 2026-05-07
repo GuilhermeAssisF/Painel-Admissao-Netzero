@@ -80,40 +80,70 @@ div[id^="WidgetAdmissao_"] {
    3. CABEÇALHO DA PÁGINA (Banner com Gradiente da Identidade Visual)
    ========================================================================== */
 .custom-page-header {
+    background: linear-gradient(135deg, #129f4f 0%, #184427 100%) !important;
+    padding: 20px 32px !important;
     display: flex;
-    justify-content: space-between;
+    justify-content: space-between; /* GARANTE QUE A LOGO FICA À ESQUERDA E BOTÕES À DIREITA */
     align-items: center;
-    padding: 24px 32px;
-    background: linear-gradient(135deg, #129f4f 0%, #184427 100%); /* Gradiente do Formulário */
-    border-radius: var(--radius-card); /* Mesmos cantos arredondados */
-    box-shadow: 0 10px 30px -10px rgba(25, 135, 84, 0.4); /* Sombra difusa verde */
-    margin-bottom: 30px;
-
-    position: relative !important;
-    z-index: 105 !important;
+    border-radius: 16px;
+    box-shadow: 0 10px 25px -5px rgba(24, 68, 39, 0.3) !important;
 }
 
-.header-title h2 {
-    margin: 0;
-    font-size: 24px;
-    font-weight: 700 !important;
-    color: #ffffff !important;
-    letter-spacing: 0.5px;
+/* Agrupador do lado esquerdo (Logo + Textos) */
+.header-title {
     display: flex;
     align-items: center;
-    text-shadow: 2px 2px 3px rgba(0, 0, 0, 0.255) !important;
 }
 
-/* Tratamento da Logo no Banner */
+/* Tratamento da Logo e do seu quadro translúcido */
+.header-logo-wrapper {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 8px;
+    border-radius: 12px;
+    margin-right: 18px; /* Única margem necessária */
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
 .header-logo {
     max-height: 45px;
     object-fit: contain;
-    margin-right: 16px;
     filter: drop-shadow(2px 4px 6px rgba(0, 0, 0, 0.5)) !important;
 }
 
+/* Textos do Cabeçalho fundidos numa só classe limpa */
+.header-text-group h2 {
+    font-size: 22px !important;
+    font-weight: 700 !important;
+    color: #ffffff !important;
+    margin: 0 !important;
+    letter-spacing: 1px;
+    text-shadow: 2px 2px 3px rgba(0, 0, 0, 0.255) !important;
+}
+
+.header-subtitle {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.7);
+    text-transform: uppercase;
+    font-weight: 500;
+    letter-spacing: 2px;
+}
+
+/* Badge de Métrica (Pill) */
+.metric-pill {
+    padding: 8px 18px !important;
+    border-radius: 20px !important;
+    margin-right: 12px;
+    cursor: default;
+}
+
+.metric-pill i {
+    color: #ffca28 !important; /* Amarelo vibrante para o ícone de raio */
+    margin-right: 10px !important;
+}
+
 /* ==========================================================================
-   GLASSMORPHISM: Botão de Ação sobre o Fundo Verde
+   GLASSMORPHISM: Botões de Ação sobre o Fundo Verde
    ========================================================================== */
 .header-glass-card {
     background: rgba(255, 255, 255, 0.15) !important; /* Branco translúcido */
@@ -141,6 +171,27 @@ div[id^="WidgetAdmissao_"] {
 
 .header-glass-card .filter-card-options .opt-page-len {
     color: var(--gray-800) !important; /* Texto escuro dentro do menu aberto */
+}
+
+/* ==========================================================================
+   ALINHAMENTO DO CABEÇALHO E FILTROS (Correção de Espaçamento)
+   ========================================================================== */
+
+/* Coloca a métrica de 7 dias e o filtro de paginação lado a lado */
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 16px; /* Espaçamento entre a métrica e o botão Exibir */
+}
+
+/* Garante que o cabeçalho verde não cola nos filtros abaixo */
+.custom-page-header {
+    margin-bottom: 32px !important; 
+}
+
+/* Garante um espaço respiro entre as linhas de filtro e os Cards do Dashboard */
+.filter-cards-row {
+    margin-bottom: 24px !important;
 }
 
 /* ==========================================================================

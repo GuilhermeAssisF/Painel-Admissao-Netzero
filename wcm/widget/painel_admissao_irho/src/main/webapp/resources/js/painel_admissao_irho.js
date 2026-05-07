@@ -2,12 +2,15 @@ var WidgetAdmissao = SuperWidget.extend({
     instanceId: null,
     table: null,
 
-    // Filtros Iniciais (Nascem Vazios para mostrar TUDO do ATS)
+    // Filtros Iniciais (Nascem Vazios para mostrar TUDO)
     filtros: {
         dataDe: "",
         dataAte: "",
         cpf: "",
-        cnpj: ""
+        cnpj: "",
+        jornada: "",
+        origem: "",
+        status: ""
     },
 
     // ==========================================
@@ -18,17 +21,10 @@ var WidgetAdmissao = SuperWidget.extend({
 
     init: function () {
         var that = this;
-
-        // Limpa os campos de data no arranque
         $("#filtroDataDe_" + this.instanceId).val("");
         $("#filtroDataAte_" + this.instanceId).val("");
-
         this.setupListeners();
-
-        // Constrói a interface do Dashboard Moderno acima da tabela
         this.buildDashboardUI();
-
-        // Atraso intencional para carregar dependências e desenhar tabela
         setTimeout(function () {
             that.initTable();
             that.carregarDados();
@@ -38,53 +34,48 @@ var WidgetAdmissao = SuperWidget.extend({
     setupListeners: function () {
         var that = this;
 
-        // ==========================================
-        // LINHA 1: Datas (Acionado apenas pelo botão)
-        // ==========================================
-        $("#btnAtualizarDatas_" + this.instanceId).on('click', function () {
+        // Datas
+        $("#btnAtualizarDatas_" + this.instanceId).off("click").on('click', function () {
             that.filtros.dataDe = $("#filtroDataDe_" + that.instanceId).val();
             that.filtros.dataAte = $("#filtroDataAte_" + that.instanceId).val();
-            that.table.draw(); // Dispara o motor de filtro (que avalia as datas)
+            if (that.table) that.table.draw();
         });
 
-        // Pesquisa Global (Busca em todas as colunas ao mesmo tempo)
+        // Buscas de Texto (Geral, CPF, CNPJ)
         $("#buscaGeral_" + this.instanceId).on("keyup", function () {
             if (that.table) that.table.search($(this).val()).draw();
         });
 
-        // ==========================================
-        // LINHA 2: Filtros Específicos (Acionamento automático)
-        // ==========================================
-
-        // CPF (Busca à prova de formatação)
         $("#buscaRapidaCpf_" + this.instanceId).on("keyup", function () {
-            that.filtros.cpf = $(this).val().replace(/\D/g, ''); // Guarda só números
+            that.filtros.cpf = $(this).val().replace(/\D/g, '');
             if (that.table) that.table.draw();
         });
 
-        // CNPJ (Busca à prova de formatação)
         $("#buscaRapidaCnpj_" + this.instanceId).on("keyup", function () {
-            that.filtros.cnpj = $(this).val().replace(/\D/g, ''); // Guarda só números
+            that.filtros.cnpj = $(this).val().replace(/\D/g, '');
             if (that.table) that.table.draw();
         });
 
-        // Jornada (Busca direta por valor exato, pois é um dropdown)
-        $(".chk-filtro-jornada").on("change", function () {
-            var valor = $(this).val();
-            if (that.table) that.table.column(2).search(valor).draw(); // <-- Alterado de 3 para 2
+        // ==========================================
+        // NOVOS FILTROS DINÂMICOS (Garantia de leitura do valor :checked)
+        // ==========================================
+        $(".chk-filtro-jornada").off("change").on("change", function () {
+            that.filtros.jornada = $("input[name='rdJornada_" + that.instanceId + "']:checked").val();
+            if (that.table) that.table.draw();
         });
 
-        // Refiltragem Rádio de PCD
-        $(".chk-filtro-pcd").on("change", function () {
-            that.table.draw();
+        $(".chk-filtro-origem").off("change").on("change", function () {
+            that.filtros.origem = $("input[name='rdOrigem_" + that.instanceId + "']:checked").val();
+            if (that.table) that.table.draw();
         });
 
-        // ==========================================
-        // CONTROLOS DE UI (Menus, Limpeza, etc)
-        // ==========================================
+        $(".chk-filtro-status").off("change").on("change", function () {
+            that.filtros.status = $("input[name='rdStatus_" + that.instanceId + "']:checked").val();
+            if (that.table) that.table.draw();
+        });
 
-        // Controlo de Menus Dropdown
-        $(".dropdown-card").on("click", function (e) {
+        // Controlos de UI (Menus Dropdown)
+        $(".dropdown-card").off("click").on("click", function (e) {
             if ($(e.target).closest('input, label').length > 0) return;
             var $options = $(this).find(".filter-card-options");
             var isActive = $options.hasClass("active");
@@ -98,36 +89,32 @@ var WidgetAdmissao = SuperWidget.extend({
             }
         });
 
-        $(document).on('click.fecharMenu', function (e) {
+        $(document).off('click.fecharMenu').on('click.fecharMenu', function (e) {
             if (!$(e.target).closest('.dropdown-card').length) {
                 $(".filter-card-options").removeClass("active");
                 $(".dropdown-card .arrow").css("transform", "rotate(0deg)");
             }
         });
 
-        // Limpar TODOS os Filtros
-        $("#btnLimparFiltros_" + this.instanceId).on("click", function () {
+        // Limpar Todos os Filtros
+        $("#btnLimparFiltros_" + this.instanceId).off("click").on("click", function () {
             $("#buscaGeral_" + that.instanceId).val("");
             $("#buscaRapidaCpf_" + that.instanceId).val("");
             $("#buscaRapidaCnpj_" + that.instanceId).val("");
             $("#filtroDataDe_" + that.instanceId).val("");
             $("#filtroDataAte_" + that.instanceId).val("");
 
-            $(".chk-filtro-pcd[value='TODOS']").prop('checked', true);
-            $(".chk-filtro-jornada[value='']").prop('checked', true);
+            $("input[name='rdJornada_" + that.instanceId + "'][value='']").prop('checked', true);
+            $("input[name='rdOrigem_" + that.instanceId + "'][value='']").prop('checked', true);
+            $("input[name='rdStatus_" + that.instanceId + "'][value='']").prop('checked', true);
 
-            that.filtros.dataDe = "";
-            that.filtros.dataAte = "";
-            that.filtros.cpf = "";
-            that.filtros.cnpj = "";
+            that.filtros = { dataDe: "", dataAte: "", cpf: "", cnpj: "", jornada: "", origem: "", status: "" };
 
-            if (that.table) {
-                that.table.search("").column(2).search("").draw();
-            }
+            if (that.table) that.table.search("").draw();
             FLUIGC.toast({ message: 'Todos os filtros foram limpos.', type: 'info' });
         });
 
-        $(".opt-page-len").on('click', function () {
+        $(".opt-page-len").off('click').on('click', function () {
             var len = $(this).data("val");
             $("#lblPageLen_" + that.instanceId).text(len);
             if (that.table) that.table.page.len(len).draw();
@@ -135,46 +122,59 @@ var WidgetAdmissao = SuperWidget.extend({
         });
 
         // ==========================================================
-        // MOTOR DE BUSCA CUSTOMIZADO (Blindado contra erros de formatação)
+        // MOTOR DE BUSCA OTIMIZADO (Blindado via _aData interno do DataTables)
         // ==========================================================
-        while ($.fn.dataTable.ext.search.length > 0) {
-            $.fn.dataTable.ext.search.pop();
-        }
+        // Garante que a função de pesquisa seja adicionada apenas 1 vez por widget
+        if (!window['irhoFilterAdded_' + this.instanceId]) {
+            $.fn.dataTable.ext.search.push(function (settings, searchData, dataIndex) {
+                if (!that || !that.table || settings.nTable.id !== "tblAdmissao_" + that.instanceId) return true;
 
-        $.fn.dataTable.ext.search.push(function (settings, data, dataIndex, rowData) {
-            if (!that || !that.table || settings.nTable.id !== "tblAdmissao_" + that.instanceId) {
+                // MÁGICA DE ESTABILIDADE: Vai buscar os dados diretos da linha na raiz do plugin
+                var row = settings.aoData[dataIndex]._aData;
+                if (!row) return true;
+
+                // 1. Datas
+                var dt = row.dataContratacao || "";
+                if (that.filtros.dataDe && that.filtros.dataDe !== "" && dt !== "" && dt < that.filtros.dataDe) return false;
+                if (that.filtros.dataAte && that.filtros.dataAte !== "" && dt !== "" && dt > that.filtros.dataAte) return false;
+
+                // 2. Textos Exatos (CPF/CNPJ)
+                if (that.filtros.cpf && that.filtros.cpf !== "") {
+                    var rCpf = String(row.cpf || "").replace(/\D/g, '');
+                    if (rCpf.indexOf(that.filtros.cpf) === -1) return false;
+                }
+                if (that.filtros.cnpj && that.filtros.cnpj !== "") {
+                    var rCnpj = String(row.cnpjFilial || "").replace(/\D/g, '');
+                    if (rCnpj.indexOf(that.filtros.cnpj) === -1) return false;
+                }
+
+                // 3. Jornada
+                if (that.filtros.jornada && that.filtros.jornada !== "") {
+                    if ((row.jornada || "") !== that.filtros.jornada) return false;
+                }
+
+                // 4. Origem (Manual vs ATS)
+                if (that.filtros.origem && that.filtros.origem !== "") {
+                    var isMan = (row.isManual === true);
+                    if (that.filtros.origem === "MANUAL" && !isMan) return false;
+                    if (that.filtros.origem === "ATS" && isMan) return false;
+                }
+
+                // 5. Status
+                if (that.filtros.status && that.filtros.status !== "") {
+                    var isStarted = (row.processoAbertoId && row.processoAbertoId !== "null" && row.processoAbertoId !== "");
+                    var currentStatus = String(row.statusProcesso || "0");
+
+                    if (that.filtros.status === "NAO_INICIADO" && isStarted) return false;
+                    if (that.filtros.status === "0" && (!isStarted || currentStatus !== "0")) return false;
+                    if (that.filtros.status === "1" && (!isStarted || currentStatus !== "1")) return false;
+                    if (that.filtros.status === "2" && (!isStarted || currentStatus !== "2")) return false;
+                }
+
                 return true;
-            }
-
-            var row = rowData;
-            if (!row) return true;
-
-            // 1. Filtro de Datas
-            var dataContratacao = row.dataContratacao || "";
-            if (that.filtros.dataDe && that.filtros.dataDe !== "" && dataContratacao !== "" && dataContratacao < that.filtros.dataDe) return false;
-            if (that.filtros.dataAte && that.filtros.dataAte !== "" && dataContratacao !== "" && dataContratacao > that.filtros.dataAte) return false;
-
-            // 2. Filtro PCD
-            var pcdFiltro = $(".chk-filtro-pcd:checked").val();
-            if (pcdFiltro === "PCD") {
-                var isPCD = (row.deficienciaFisica === "1" || row.deficienciaAuditiva === "1" || row.deficienciaVisual === "1" || row.deficienciaIntelectual === "1");
-                if (!isPCD) return false;
-            }
-
-            // 3. Filtro CPF (Lê apenas números do campo e da linha)
-            if (that.filtros.cpf && that.filtros.cpf !== "") {
-                var rowCpf = (row.cpf || "").replace(/\D/g, ''); // Tira pontos e traços do dado nativo
-                if (rowCpf.indexOf(that.filtros.cpf) === -1) return false;
-            }
-
-            // 4. Filtro CNPJ (Lê apenas números do campo e da linha)
-            if (that.filtros.cnpj && that.filtros.cnpj !== "") {
-                var rowCnpj = (row.cnpjFilial || "").replace(/\D/g, ''); // Tira pontos e barras do dado nativo
-                if (rowCnpj.indexOf(that.filtros.cnpj) === -1) return false;
-            }
-
-            return true;
-        });
+            });
+            window['irhoFilterAdded_' + this.instanceId] = true;
+        }
     },
 
     /**
@@ -382,28 +382,15 @@ var WidgetAdmissao = SuperWidget.extend({
             data: []
         });
 
-        this.table.on('draw', function () { that.calcularTotais(); });
-    },
-
-    /**
-     * Calcula os totais do rodapé com base nos registos VISÍVEIS
-     */
-    calcularTotais: function () {
-        if (!this.table) return;
-        var rows = this.table.rows({ filter: 'applied' }).data();
-
-        var totalFila = 0;
-        var totalPcd = 0;
-
-        rows.each(function (row) {
-            totalFila++;
-            if (row.deficienciaFisica === "1" || row.deficienciaAuditiva === "1" || row.deficienciaVisual === "1" || row.deficienciaIntelectual === "1") {
-                totalPcd++;
-            }
+        // =====================================================================
+        // GATILHO MÁGICO: Sempre que a tabela for desenhada/filtrada, atualiza os cards!
+        // =====================================================================
+        this.table.on('draw', function () {
+            // Pega APENAS os registros que passaram pelos filtros (linhas visíveis)
+            var dadosFiltrados = that.table.rows({ filter: 'applied' }).data().toArray();
+            that.updateMetrics(dadosFiltrados);
         });
 
-        $("#lblTotalFila_" + this.instanceId).text(totalFila);
-        $("#lblTotalPcd_" + this.instanceId).text(totalPcd);
     },
 
     /**
@@ -1118,41 +1105,112 @@ var WidgetAdmissao = SuperWidget.extend({
     },
 
     /**
-     * Calcula as métricas complexas e injeta os dados extras para o Tooltip do Gráfico
+     * Calcula as métricas baseadas APENAS nos dados que estão filtrados/visíveis na tabela
      */
     updateMetrics: function (registros) {
-        if (!registros || registros.length === 0) return;
         var that = this;
 
         var contAts = 0, contManual = 0;
         var cNaoIniciado = 0, cAberto = 0, cFinalizado = 0;
+        var contNovos7Dias = 0;
         var mapColigadasCount = {};
+        var hoje = moment();
 
-        for (var i = 0; i < registros.length; i++) {
-            var r = registros[i];
+        // Só faz a contagem se houver registros visíveis
+        if (registros && registros.length > 0) {
+            for (var i = 0; i < registros.length; i++) {
+                var r = registros[i];
 
-            if (r.isManual) contManual++; else contAts++;
+                if (r.isManual) contManual++; else contAts++;
 
-            if (!r.processoAbertoId || r.processoAbertoId === "null" || r.processoAbertoId === "") {
-                cNaoIniciado++;
-            } else if (r.statusProcesso === "0") {
-                cAberto++;
-            } else if (r.statusProcesso === "2") {
-                cFinalizado++;
-            }
+                if (!r.processoAbertoId || r.processoAbertoId === "null" || r.processoAbertoId === "") {
+                    cNaoIniciado++;
+                } else if (r.statusProcesso === "0") {
+                    cAberto++;
+                } else if (r.statusProcesso === "2" || r.statusProcesso === "1") {
+                    // Se estivermos a filtrar por cancelado ou finalizado, agrupa aqui para a métrica final
+                    cFinalizado++;
+                }
 
-            var cnpj = String(r.cnpjFilial || "").replace(/\D/g, '');
-            if (cnpj) {
-                mapColigadasCount[cnpj] = (mapColigadasCount[cnpj] || 0) + 1;
+                if (r.dataContratacao) {
+                    var dtAdmissao = moment(r.dataContratacao, "YYYY-MM-DD");
+                    if (Math.abs(hoje.diff(dtAdmissao, 'days')) <= 7) {
+                        contNovos7Dias++;
+                    }
+                }
+
+                var cnpj = String(r.cnpjFilial || "").replace(/\D/g, '');
+                if (cnpj) {
+                    mapColigadasCount[cnpj] = (mapColigadasCount[cnpj] || 0) + 1;
+                }
             }
         }
 
+        // Atualiza os números na tela (agora anima a partir do número que já lá estava)
         this.animateValue("valNaoIniciado_" + this.instanceId, cNaoIniciado);
         this.animateValue("valAbertos_" + this.instanceId, cAberto);
         this.animateValue("valFinalizados_" + this.instanceId, cFinalizado);
         this.animateValue("valAts_" + this.instanceId, contAts);
         this.animateValue("valManual_" + this.instanceId, contManual);
+        this.animateValue("headerVal7Dias_" + this.instanceId, contNovos7Dias);
 
+        // =========================================================
+        // Lógica do Gráfico de BARRAS VERTICAIS com CACHE de Alta Performance
+        // =========================================================
+        var desenharGrafico = function (mapNomes, mapDetalhes) {
+            var aggChart = {};
+            for (var cnpjKey in mapColigadasCount) {
+                var nomeAmigavel = mapNomes[cnpjKey] || "Não Identificada";
+                var detalhe = mapDetalhes[cnpjKey] || { cod: "-", nomeFull: "Desconhecida" };
+
+                if (!aggChart[nomeAmigavel]) {
+                    aggChart[nomeAmigavel] = { value: 0, cod: detalhe.cod, nomeFull: detalhe.nomeFull };
+                }
+                aggChart[nomeAmigavel].value += mapColigadasCount[cnpjKey];
+            }
+
+            var chartData = [];
+            var maxVal = 0;
+            for (var n in aggChart) {
+                chartData.push({ name: n, value: aggChart[n].value, cod: aggChart[n].cod, nomeFull: aggChart[n].nomeFull });
+                if (aggChart[n].value > maxVal) maxVal = aggChart[n].value;
+            }
+            chartData.sort(function (a, b) { return b.value - a.value; });
+            chartData = chartData.slice(0, 5); // Top 5
+
+            var htmlChart = "";
+            chartData.forEach(function (item) {
+                var percentual = maxVal > 0 ? (item.value / maxVal) * 100 : 0;
+                if (percentual > 0 && percentual < 5) percentual = 5;
+
+                htmlChart += '<div class="irho-bar-wrapper">' +
+                    '<div class="irho-tooltip"><strong style="color:#818CF8;">Cód. Coligada:</strong> ' + item.cod + '<br><strong>Filial:</strong> ' + item.nomeFull + '</div>' +
+                    '<div class="irho-bar-value">' + item.value + '</div>' +
+                    '<div class="irho-bar-track"><div class="irho-bar-fill" style="height: 0%;" data-height="' + percentual + '%"></div></div>' +
+                    '<div class="irho-bar-label">' + item.name + '</div>' +
+                    '</div>';
+            });
+
+            if (chartData.length === 0) {
+                htmlChart = '<div style="text-align:center; color:#9CA3AF; font-size:12px; width: 100%;">Nenhum dado encontrado para os filtros aplicados.</div>';
+            }
+
+            $("#chartColigada_" + that.instanceId).html(htmlChart);
+
+            setTimeout(function () {
+                $("#chartColigada_" + that.instanceId + " .irho-bar-fill").each(function () {
+                    $(this).css('height', $(this).attr('data-height'));
+                });
+            }, 50);
+        };
+
+        // Se já buscou os nomes das filiais nesta sessão, desenha instantaneamente!
+        if (this._cacheGraficoNomes && this._cacheGraficoDetalhes) {
+            desenharGrafico(this._cacheGraficoNomes, this._cacheGraficoDetalhes);
+            return;
+        }
+
+        // Se for a primeira vez que abre o painel, vai ao RM buscar os nomes das filiais
         var url = WCMAPI.getServerURL() + '/api/public/ecm/dataset/datasets';
         $.ajax({
             url: url,
@@ -1161,98 +1219,43 @@ var WidgetAdmissao = SuperWidget.extend({
             data: JSON.stringify({ name: "ds_irho_empresaFilial" }),
             success: function (res) {
                 var mapNomes = {};
-                var mapDetalhes = {}; // NOVO: Guarda dados extra para o Tooltip
+                var mapDetalhes = {};
 
                 if (res.content && res.content.values) {
                     res.content.values.forEach(function (f) {
                         var cnpjRM = String(f["CNPJ_FILIAL"] || f["cnpj_filial"] || f["CNPJ"] || "").replace(/\D/g, '');
                         var nomeBruto = String(f["NOMECOMERCIAL_FILIAL"] || f["nomecomercial_filial"] || ("Coligada " + f["ID_EMPRESA"]));
                         var codColigada = String(f["ID_EMPRESA"] || f["id_empresa"] || "-");
-
                         var nomeLimpo = nomeBruto.replace(/^NETZERO\s*(-\s*)?/i, '').trim();
 
                         if (cnpjRM) {
                             mapNomes[cnpjRM] = nomeLimpo;
-                            mapDetalhes[cnpjRM] = {
-                                cod: codColigada,
-                                nomeFull: nomeBruto // Guarda o nome original sem cortes para o detalhe
-                            };
+                            mapDetalhes[cnpjRM] = { cod: codColigada, nomeFull: nomeBruto };
                         }
                     });
                 }
 
-                // Agrupador agora guarda um objeto em vez de apenas um número
-                var aggChart = {};
-                for (var cnpjKey in mapColigadasCount) {
-                    var nomeAmigavel = mapNomes[cnpjKey] || "Não Identificada";
-                    var detalhe = mapDetalhes[cnpjKey] || { cod: "-", nomeFull: "Desconhecida" };
+                // Salva na memória da Widget para as próximas filtragens não precisarem carregar
+                that._cacheGraficoNomes = mapNomes;
+                that._cacheGraficoDetalhes = mapDetalhes;
 
-                    if (!aggChart[nomeAmigavel]) {
-                        aggChart[nomeAmigavel] = {
-                            value: 0,
-                            cod: detalhe.cod,
-                            nomeFull: detalhe.nomeFull
-                        };
-                    }
-                    aggChart[nomeAmigavel].value += mapColigadasCount[cnpjKey];
-                }
-
-                var chartData = [];
-                var maxVal = 0;
-                for (var n in aggChart) {
-                    chartData.push({
-                        name: n,
-                        value: aggChart[n].value,
-                        cod: aggChart[n].cod,
-                        nomeFull: aggChart[n].nomeFull
-                    });
-                    if (aggChart[n].value > maxVal) maxVal = aggChart[n].value;
-                }
-                chartData.sort(function (a, b) { return b.value - a.value; });
-
-                chartData = chartData.slice(0, 5);
-
-                var htmlChart = "";
-                chartData.forEach(function (item) {
-                    var percentual = maxVal > 0 ? (item.value / maxVal) * 100 : 0;
-                    if (percentual > 0 && percentual < 5) percentual = 5;
-
-                    htmlChart += '<div class="irho-bar-wrapper">' +
-                        // INJEÇÃO DO TOOLTIP AQUI
-                        '<div class="irho-tooltip">' +
-                        '<strong style="color:#818CF8;">Cód. Coligada:</strong> ' + item.cod + '<br>' +
-                        '<strong>Filial:</strong> ' + item.nomeFull +
-                        '</div>' +
-                        '<div class="irho-bar-value">' + item.value + '</div>' +
-                        '<div class="irho-bar-track"><div class="irho-bar-fill" style="height: 0%;" data-height="' + percentual + '%"></div></div>' +
-                        '<div class="irho-bar-label">' + item.name + '</div>' +
-                        '</div>';
-                });
-
-                if (chartData.length === 0) {
-                    htmlChart = '<div style="text-align:center; color:#9CA3AF; font-size:12px; width: 100%;">Sem dados para exibir</div>';
-                }
-
-                $("#chartColigada_" + that.instanceId).html(htmlChart);
-
-                setTimeout(function () {
-                    $("#chartColigada_" + that.instanceId + " .irho-bar-fill").each(function () {
-                        $(this).css('height', $(this).attr('data-height'));
-                    });
-                }, 100);
+                desenharGrafico(mapNomes, mapDetalhes);
             }
         });
     },
 
     /**
-     * Efeito especial de contagem (0 até o valor final)
+     * Efeito especial de contagem (Inicia do valor atual na tela para não piscar)
      */
     animateValue: function (id, endVal) {
         var obj = document.getElementById(id);
         if (!obj) return;
 
-        var startVal = 0;
-        var duration = 1200;
+        // Pega o número que está na tela agora (Evita que o número caia para zero ao digitar um filtro)
+        var startVal = parseInt(obj.innerHTML) || 0;
+        if (startVal === endVal) return; // Se for igual, não faz nada
+
+        var duration = 600; // Tempo de animação mais rápido para filtros (0.6s)
         var startTime = null;
 
         var step = function (currentTime) {

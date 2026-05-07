@@ -6,17 +6,24 @@
 
     <div class="custom-page-header">
         <div class="header-title">
-            <h2>
-                <img src="/painel_admissao_irho/resources/images/logo1-netzero.png" onerror="this.src='img/logo1-netzero.png'" class="header-logo" alt="Logo"> 
-                PAINEL ADMISSÃO DIGITAL
-            </h2>
+            <div class="header-logo-wrapper">
+                <img src="/painel_admissao_irho/resources/images/logo1-netzero.png" onerror="this.src='img/logo1-netzero.png'" class="header-logo" alt="Logo">
+            </div>
+            <div class="header-text-group">
+                <h2>PAINEL ADMISSÃO DIGITAL</h2>
+                <span class="header-subtitle">Gestão Estratégica de Talentos</span>
+            </div>
         </div>
 
         <div class="header-actions">
+            <div class="header-glass-card metric-pill">
+                <i class="fluigicon fluigicon-bolt icon-sm"></i>
+                <span class="card-label">Admissões (7d): <strong id="headerVal7Dias_${instanceId}" style="font-size: 16px;">0</strong></span>
+            </div>
+
             <div class="filter-card dropdown-card header-glass-card" style="min-width: 130px; justify-content: space-between;">
                 <span class="card-label">Exibir: <span id="lblPageLen_${instanceId}" style="color: #fff; font-weight: bold;">10</span></span>
                 <i class="fluigicon fluigicon-chevron-down arrow"></i>
-                
                 <div class="filter-card-options" style="min-width: 100px;">
                     <div class="opt-page-len" data-val="10">10 registos</div>
                     <div class="opt-page-len" data-val="25">25 registos</div>
@@ -27,8 +34,7 @@
         </div>
     </div>
 
-    <div class="filter-cards-row full-width" style="align-items: center; margin-bottom: 24px;">
-        
+<div class="filter-cards-row full-width" style="align-items: center; margin-bottom: 12px;">
         <div class="filter-card search-card expand" onclick="$('#buscaGeral_${instanceId}').focus()">
             <div style="display: flex; align-items: center; width: 100%;">
                 <i class="fluigicon fluigicon-search"></i>
@@ -57,19 +63,47 @@
         
         <div class="filter-card search-card expand" onclick="$('#buscaRapidaCpf_${instanceId}').focus()">
             <div style="display: flex; align-items: center; width: 100%;">
-                <i class="fluigicon fluigicon-search"></i>
+                <i class="fluigicon fluigicon-card icon-sm" style="color: var(--gray-500);"></i>
                 <input type="text" id="buscaRapidaCpf_${instanceId}" placeholder="CPF...">
             </div>
         </div>
 
         <div class="filter-card search-card expand" onclick="$('#buscaRapidaCnpj_${instanceId}').focus()">
             <div style="display: flex; align-items: center; width: 100%;">
-                <i class="fluigicon fluigicon-search"></i>
-                <input type="text" id="buscaRapidaCnpj_${instanceId}" placeholder="CNPJ Empresa...">
+                <i class="fluigicon fluigicon-company icon-sm" style="color: var(--gray-500);"></i>
+                <input type="text" id="buscaRapidaCnpj_${instanceId}" placeholder="CNPJ...">
             </div>
         </div>
 
         <div class="filter-card dropdown-card expand">
+            <div style="display: flex; align-items: center;">
+                <i class="fluigicon fluigicon-transfer icon-sm" style="color:var(--cor-primaria); margin-right:5px;"></i>
+                <span class="card-label">Origem</span>
+            </div>
+            <i class="fluigicon fluigicon-chevron-down arrow"></i>
+            <div class="filter-card-options">
+                <label><input type="radio" name="rdOrigem_${instanceId}" class="chk-filtro-origem" value="" checked> Todas</label>
+                <label><input type="radio" name="rdOrigem_${instanceId}" class="chk-filtro-origem" value="ATS"> Integração ATS</label>
+                <label><input type="radio" name="rdOrigem_${instanceId}" class="chk-filtro-origem" value="MANUAL"> Abertura Manual</label>
+            </div>
+        </div>
+
+        <div class="filter-card dropdown-card expand">
+            <div style="display: flex; align-items: center;">
+                <i class="fluigicon fluigicon-info-sign icon-sm" style="color:var(--cor-primaria); margin-right:5px;"></i>
+                <span class="card-label">Status</span>
+            </div>
+            <i class="fluigicon fluigicon-chevron-down arrow"></i>
+            <div class="filter-card-options">
+                <label><input type="radio" name="rdStatus_${instanceId}" class="chk-filtro-status" value="" checked> Todos</label>
+                <label><input type="radio" name="rdStatus_${instanceId}" class="chk-filtro-status" value="NAO_INICIADO"> Não Iniciados</label>
+                <label><input type="radio" name="rdStatus_${instanceId}" class="chk-filtro-status" value="0"> Em Andamento</label>
+                <label><input type="radio" name="rdStatus_${instanceId}" class="chk-filtro-status" value="2"> Finalizados</label>
+                <label><input type="radio" name="rdStatus_${instanceId}" class="chk-filtro-status" value="1"> Cancelados</label>
+            </div>
+        </div>
+
+       <div class="filter-card dropdown-card expand">
             <div style="display: flex; align-items: center;">
                 <i class="fluigicon fluigicon-time icon-sm" style="color:var(--cor-primaria); margin-right:5px;"></i>
                 <span class="card-label">Jornada</span>
@@ -79,19 +113,6 @@
                 <label><input type="radio" name="rdJornada_${instanceId}" class="chk-filtro-jornada" value="" checked> Todas</label>
                 <label><input type="radio" name="rdJornada_${instanceId}" class="chk-filtro-jornada" value="CLT"> CLT</label>
                 <label><input type="radio" name="rdJornada_${instanceId}" class="chk-filtro-jornada" value="Estágio"> Estágio</label>
-                <label><input type="radio" name="rdJornada_${instanceId}" class="chk-filtro-jornada" value="Aprendiz"> Aprendiz</label>
-            </div>
-        </div>
-
-        <div class="filter-card dropdown-card expand">
-            <div style="display: flex; align-items: center;">
-                <i class="fluigicon fluigicon-wheelchair icon-sm" style="color:var(--cor-primaria); margin-right:5px;"></i>
-                <span class="card-label">Diversidade</span>
-            </div>
-            <i class="fluigicon fluigicon-chevron-down arrow"></i>
-            <div class="filter-card-options">
-                <label><input type="radio" name="rdPcd_${instanceId}" class="chk-filtro-pcd" value="TODOS" checked> Exibir Todos</label>
-                <label><input type="radio" name="rdPcd_${instanceId}" class="chk-filtro-pcd" value="PCD"> Apenas Vagas PCD</label>
             </div>
         </div>
 
@@ -99,7 +120,6 @@
             <i class="fluigicon fluigicon-eraser icon-sm" style="color:#DC2626; margin-right:5px;"></i>
             <span class="card-label" style="color:#DC2626; font-weight: 600;">Limpar</span>
         </div>
-
     </div>
 
     <div class="row" style="margin-top: 10px;">
