@@ -25,6 +25,9 @@ var WidgetAdmissao = SuperWidget.extend({
 
         this.setupListeners();
 
+        // Constrói a interface do Dashboard Moderno acima da tabela
+        this.buildDashboardUI();
+
         // Atraso intencional para carregar dependências e desenhar tabela
         setTimeout(function () {
             that.initTable();
@@ -496,6 +499,9 @@ var WidgetAdmissao = SuperWidget.extend({
             // MÁGICA: Tira o loading e desenha a tabela NA HORA
             that.table.clear().rows.add(finalRegistros).draw();
             load.hide();
+
+            // Atualiza os Cards Superiores
+            that.updateMetrics(finalRegistros);
 
             // =========================================================================
             // WORKER QUEUE: Busca de Status Individual e Paralela (À prova de bugs do Fluig)
@@ -981,4 +987,287 @@ var WidgetAdmissao = SuperWidget.extend({
             size: 'large'
         });
     },
+
+    /**
+     * Constrói o HTML e CSS do Dashboard Moderno (BARRAS VERTICAIS + ALTURA COMPACTA)
+     */
+    buildDashboardUI: function () {
+        var cssDashboard = [
+            '<style>',
+            '.irho-dash-wrapper { font-family: "Inter", "Poppins", sans-serif; margin-bottom: 20px; }',
+
+            /* Grid 1/1/2 */
+            '.irho-metrics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }',
+            '@media (max-width: 1024px) { .irho-metrics-grid { grid-template-columns: repeat(2, 1fr); } }',
+            '@media (max-width: 768px) { .irho-metrics-grid { grid-template-columns: 1fr; } }',
+            '.col-span-1 { grid-column: span 1; }',
+            '.col-span-2 { grid-column: span 2; }',
+
+            /* Layout dos Cards (Mais Compactos) */
+            /* Reduzimos o padding vertical para 12px e a min-height para 120px */
+            '.irho-metric-card { background: #FFFFFF; border-radius: 12px; padding: 12px 16px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03); border: 1px solid #F0F2F8; display: flex; flex-direction: column; transition: transform 0.2s, box-shadow 0.2s; height: 100%; min-height: 120px; }',
+            '.irho-metric-card:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05); }',
+
+            /* Cabeçalho do Card (Ícones e margens menores) */
+            '.irho-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }',
+            '.irho-icon-box { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }',
+            '.irho-card-title { font-size: 12px; color: #6B7280; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin: 0; }',
+
+            /* Cores dos Ícones */
+            '.irho-icon-purple { background: #EEF0FF; color: #5B5FEF; }',
+            '.irho-icon-blue { background: #E0F2FE; color: #0EA5E9; }',
+            '.irho-icon-orange { background: #FFEDD5; color: #F97316; }',
+
+            /* Mini-linhas de dados (Menos padding entre elas) */
+            '.irho-mini-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px dashed #F3F4F6; }',
+            '.irho-mini-row:last-child { border-bottom: none; padding-bottom: 0; }',
+            '.irho-mini-label { font-size: 11px; color: #4B5563; display: flex; align-items: center; gap: 6px; }',
+            '.irho-mini-value { font-size: 13px; font-weight: 700; color: #111827; }',
+
+            /* Estilos do Gráfico de Barras CSS (Altura Reduzida) */
+            /* Reduzimos a altura base do container do gráfico de 150px para 120px */
+            '.irho-chart-container { display: flex; flex-direction: row; align-items: flex-end; justify-content: space-around; height: 120px; padding-top: 5px; padding-bottom: 2px; width: 100%; }',
+            '.irho-bar-wrapper { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; max-width: 80px; flex: 1; cursor: pointer; }',
+            '.irho-bar-value { font-size: 12px; font-weight: 700; color: #111827; margin-bottom: 4px; transition: color 0.2s; }',
+            '.irho-bar-track { width: 32px; flex-grow: 1; background: #F3F4F6; border-radius: 4px 4px 0 0; display: flex; align-items: flex-end; overflow: hidden; }',
+            '.irho-bar-fill { width: 100%; background: linear-gradient(0deg, #5B5FEF 0%, #818CF8 100%); border-radius: 4px 4px 0 0; transition: height 1s cubic-bezier(0.4, 0, 0.2, 1), filter 0.2s; }',
+            '.irho-bar-label { font-size: 10px; color: #6B7280; font-weight: 600; text-align: center; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 6px; line-height: 1.1; }',
+
+            /* TOOLTIP MÁGICO */
+            '.irho-tooltip { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); background: #111827; color: #FFFFFF; padding: 8px 12px; border-radius: 6px; font-size: 11px; white-space: nowrap; opacity: 0; visibility: hidden; transition: all 0.2s ease-out; z-index: 50; text-align: center; line-height: 1.4; pointer-events: none; margin-bottom: -5px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }',
+            '.irho-tooltip::after { content: ""; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); border-width: 5px; border-style: solid; border-color: #111827 transparent transparent transparent; }',
+            '.irho-bar-wrapper:hover .irho-tooltip { opacity: 1; visibility: visible; margin-bottom: 6px; }',
+            '.irho-bar-wrapper:hover .irho-bar-fill { filter: brightness(1.1); }',
+            '.irho-bar-wrapper:hover .irho-bar-value { color: #5B5FEF; }',
+
+            /* Animação do Ícone Em Andamento */
+            '@keyframes fluig-spin { 100% { transform: rotate(360deg); } }',
+            '.icon-spin-custom { animation: fluig-spin 2s linear infinite; }',
+
+            '.fluig-style-guide .wcm-widget-class { background-color: transparent !important; }',
+            '</style>'
+        ].join('');
+
+        var htmlDashboard = [
+            '<div class="irho-dash-wrapper" id="dashMetrics_' + this.instanceId + '">',
+            '<div class="irho-metrics-grid">',
+
+            // CARD 1: Status das Solicitações
+            '<div class="irho-metric-card col-span-1">',
+            '<div class="irho-card-header">',
+            '<div class="irho-icon-box irho-icon-blue"><i class="fluigicon fluigicon-info-sign"></i></div>',
+            '<h4 class="irho-card-title">Status Global</h4>',
+            '</div>',
+            '<div style="flex-grow: 1; display: flex; flex-direction: column; justify-content: center;">',
+            '<div class="irho-mini-row">',
+            '<span class="irho-mini-label"><i class="fluigicon fluigicon-time icon-sm" style="color: #9CA3AF;"></i> Não Iniciadas</span>',
+            '<span class="irho-mini-value" id="valNaoIniciado_' + this.instanceId + '">0</span>',
+            '</div>',
+            '<div class="irho-mini-row">',
+            '<span class="irho-mini-label"><i class="fluigicon fluigicon-cog icon-spin-custom icon-sm" style="color: #3B82F6;"></i> Em Andamento</span>',
+            '<span class="irho-mini-value" id="valAbertos_' + this.instanceId + '">0</span>',
+            '</div>',
+            '<div class="irho-mini-row">',
+            '<span class="irho-mini-label"><i class="fluigicon fluigicon-check-circle-on icon-sm" style="color: #22C55E;"></i> Finalizadas</span>',
+            '<span class="irho-mini-value" id="valFinalizados_' + this.instanceId + '">0</span>',
+            '</div>',
+            '</div>',
+            '</div>',
+
+            // CARD 2: Origem dos Dados
+            '<div class="irho-metric-card col-span-1">',
+            '<div class="irho-card-header">',
+            '<div class="irho-icon-box irho-icon-orange"><i class="fluigicon fluigicon-transfer"></i></div>',
+            '<h4 class="irho-card-title">Origem dos Dados</h4>',
+            '</div>',
+            '<div style="flex-grow: 1; display: flex; flex-direction: column; justify-content: center;">',
+            '<div class="irho-mini-row">',
+            '<span class="irho-mini-label"><i class="fluigicon fluigicon-cloud-upload icon-sm" style="color: #F97316;"></i> Integração ATS</span>',
+            '<span class="irho-mini-value" id="valAts_' + this.instanceId + '">0</span>',
+            '</div>',
+            '<div class="irho-mini-row">',
+            '<span class="irho-mini-label"><i class="fluigicon fluigicon-user-add icon-sm" style="color: #6B7280;"></i> Abertura Manual</span>',
+            '<span class="irho-mini-value" id="valManual_' + this.instanceId + '">0</span>',
+            '</div>',
+            '</div>',
+            '</div>',
+
+            // CARD 3: Gráfico de Admissões por Coligada
+            '<div class="irho-metric-card col-span-2">',
+            '<div class="irho-card-header">',
+            '<div class="irho-icon-box irho-icon-purple"><i class="fluigicon fluigicon-company"></i></div>',
+            '<h4 class="irho-card-title">Admissões por Coligada</h4>',
+            '</div>',
+            '<div class="irho-chart-container" id="chartColigada_' + this.instanceId + '">',
+            '<div style="text-align: center; color: #9CA3AF; font-size: 11px; margin-top: 10px; width: 100%;">Calculando dados do RM...</div>',
+            '</div>',
+            '</div>',
+
+            '</div>',
+            '</div>'
+        ].join('');
+
+        $('head').append(cssDashboard);
+
+        var $wrapper = $('#tblAdmissao_' + this.instanceId).parents('.table-responsive').parent();
+        if ($wrapper.prev('.row').length > 0) {
+            $wrapper.prev('.row').before(htmlDashboard);
+        } else {
+            $wrapper.prepend(htmlDashboard);
+        }
+    },
+
+    /**
+     * Calcula as métricas complexas e injeta os dados extras para o Tooltip do Gráfico
+     */
+    updateMetrics: function (registros) {
+        if (!registros || registros.length === 0) return;
+        var that = this;
+
+        var contAts = 0, contManual = 0;
+        var cNaoIniciado = 0, cAberto = 0, cFinalizado = 0;
+        var mapColigadasCount = {};
+
+        for (var i = 0; i < registros.length; i++) {
+            var r = registros[i];
+
+            if (r.isManual) contManual++; else contAts++;
+
+            if (!r.processoAbertoId || r.processoAbertoId === "null" || r.processoAbertoId === "") {
+                cNaoIniciado++;
+            } else if (r.statusProcesso === "0") {
+                cAberto++;
+            } else if (r.statusProcesso === "2") {
+                cFinalizado++;
+            }
+
+            var cnpj = String(r.cnpjFilial || "").replace(/\D/g, '');
+            if (cnpj) {
+                mapColigadasCount[cnpj] = (mapColigadasCount[cnpj] || 0) + 1;
+            }
+        }
+
+        this.animateValue("valNaoIniciado_" + this.instanceId, cNaoIniciado);
+        this.animateValue("valAbertos_" + this.instanceId, cAberto);
+        this.animateValue("valFinalizados_" + this.instanceId, cFinalizado);
+        this.animateValue("valAts_" + this.instanceId, contAts);
+        this.animateValue("valManual_" + this.instanceId, contManual);
+
+        var url = WCMAPI.getServerURL() + '/api/public/ecm/dataset/datasets';
+        $.ajax({
+            url: url,
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ name: "ds_irho_empresaFilial" }),
+            success: function (res) {
+                var mapNomes = {};
+                var mapDetalhes = {}; // NOVO: Guarda dados extra para o Tooltip
+
+                if (res.content && res.content.values) {
+                    res.content.values.forEach(function (f) {
+                        var cnpjRM = String(f["CNPJ_FILIAL"] || f["cnpj_filial"] || f["CNPJ"] || "").replace(/\D/g, '');
+                        var nomeBruto = String(f["NOMECOMERCIAL_FILIAL"] || f["nomecomercial_filial"] || ("Coligada " + f["ID_EMPRESA"]));
+                        var codColigada = String(f["ID_EMPRESA"] || f["id_empresa"] || "-");
+
+                        var nomeLimpo = nomeBruto.replace(/^NETZERO\s*(-\s*)?/i, '').trim();
+
+                        if (cnpjRM) {
+                            mapNomes[cnpjRM] = nomeLimpo;
+                            mapDetalhes[cnpjRM] = {
+                                cod: codColigada,
+                                nomeFull: nomeBruto // Guarda o nome original sem cortes para o detalhe
+                            };
+                        }
+                    });
+                }
+
+                // Agrupador agora guarda um objeto em vez de apenas um número
+                var aggChart = {};
+                for (var cnpjKey in mapColigadasCount) {
+                    var nomeAmigavel = mapNomes[cnpjKey] || "Não Identificada";
+                    var detalhe = mapDetalhes[cnpjKey] || { cod: "-", nomeFull: "Desconhecida" };
+
+                    if (!aggChart[nomeAmigavel]) {
+                        aggChart[nomeAmigavel] = {
+                            value: 0,
+                            cod: detalhe.cod,
+                            nomeFull: detalhe.nomeFull
+                        };
+                    }
+                    aggChart[nomeAmigavel].value += mapColigadasCount[cnpjKey];
+                }
+
+                var chartData = [];
+                var maxVal = 0;
+                for (var n in aggChart) {
+                    chartData.push({
+                        name: n,
+                        value: aggChart[n].value,
+                        cod: aggChart[n].cod,
+                        nomeFull: aggChart[n].nomeFull
+                    });
+                    if (aggChart[n].value > maxVal) maxVal = aggChart[n].value;
+                }
+                chartData.sort(function (a, b) { return b.value - a.value; });
+
+                chartData = chartData.slice(0, 5);
+
+                var htmlChart = "";
+                chartData.forEach(function (item) {
+                    var percentual = maxVal > 0 ? (item.value / maxVal) * 100 : 0;
+                    if (percentual > 0 && percentual < 5) percentual = 5;
+
+                    htmlChart += '<div class="irho-bar-wrapper">' +
+                        // INJEÇÃO DO TOOLTIP AQUI
+                        '<div class="irho-tooltip">' +
+                        '<strong style="color:#818CF8;">Cód. Coligada:</strong> ' + item.cod + '<br>' +
+                        '<strong>Filial:</strong> ' + item.nomeFull +
+                        '</div>' +
+                        '<div class="irho-bar-value">' + item.value + '</div>' +
+                        '<div class="irho-bar-track"><div class="irho-bar-fill" style="height: 0%;" data-height="' + percentual + '%"></div></div>' +
+                        '<div class="irho-bar-label">' + item.name + '</div>' +
+                        '</div>';
+                });
+
+                if (chartData.length === 0) {
+                    htmlChart = '<div style="text-align:center; color:#9CA3AF; font-size:12px; width: 100%;">Sem dados para exibir</div>';
+                }
+
+                $("#chartColigada_" + that.instanceId).html(htmlChart);
+
+                setTimeout(function () {
+                    $("#chartColigada_" + that.instanceId + " .irho-bar-fill").each(function () {
+                        $(this).css('height', $(this).attr('data-height'));
+                    });
+                }, 100);
+            }
+        });
+    },
+
+    /**
+     * Efeito especial de contagem (0 até o valor final)
+     */
+    animateValue: function (id, endVal) {
+        var obj = document.getElementById(id);
+        if (!obj) return;
+
+        var startVal = 0;
+        var duration = 1200;
+        var startTime = null;
+
+        var step = function (currentTime) {
+            if (!startTime) startTime = currentTime;
+            var progress = Math.min((currentTime - startTime) / duration, 1);
+            var easeProgress = progress * (2 - progress);
+
+            obj.innerHTML = Math.floor(easeProgress * (endVal - startVal) + startVal);
+
+            if (progress < 1) {
+                window.requestAnimationFrame(step);
+            } else {
+                obj.innerHTML = endVal;
+            }
+        };
+        window.requestAnimationFrame(step);
+    }
 });
