@@ -1,6 +1,7 @@
 var WidgetAdmissao = SuperWidget.extend({
     instanceId: null,
     table: null,
+    config: {},
 
     // Filtros Iniciais (Nascem Vazios para mostrar TUDO)
     filtros: {
@@ -23,12 +24,37 @@ var WidgetAdmissao = SuperWidget.extend({
         var that = this;
         $("#filtroDataDe_" + this.instanceId).val("");
         $("#filtroDataAte_" + this.instanceId).val("");
-        this.setupListeners();
-        this.buildDashboardUI();
-        setTimeout(function () {
-            that.initTable();
-            that.carregarDados();
-        }, 300);
+        this.buscarParametros(function () {
+            that.setupListeners();
+            that.buildDashboardUI();
+            setTimeout(function () {
+                that.initTable();
+                that.carregarDados();
+            }, 300);
+        });
+    },
+
+    buscarParametros: function (callback) {
+        var that = this;
+        DatasetFactory.getDataset("Form_Configuracoes_Admissao", null, [
+            DatasetFactory.createConstraint("metadata#active", "true", "true", ConstraintType.MUST)
+        ], null, {
+            success: function (ds) {
+                if (ds && ds.values && ds.values.length > 0) {
+                    var item = ds.values[0];
+                    that.config = {
+                        processId: item.FLUIG_PROCESS_ID_ADMISSAO || "FLUIG-0002 - Admissão IRHO",
+                        atvDados: String(item.ATIVIDADE_CANDIDATO_DADOS || "122"),
+                        atvCorrecao: String(item.ATIVIDADE_CANDIDATO_CORRECAO || "150"),
+                        atvAssinatura: String(item.ATIVIDADE_CANDIDATO_ASSINATURA || "129")
+                    };
+                }
+                if (callback) callback();
+            },
+            error: function () {
+                if (callback) callback();
+            }
+        });
     },
 
     setupListeners: function () {
@@ -195,7 +221,20 @@ var WidgetAdmissao = SuperWidget.extend({
             deferRender: true,
             columns: [
                 // 0. ID ATS
-                { title: "ID ATS", data: "codRequisicaoATS", className: "text-center", defaultContent: "-" },
+                {
+                    title: "ID ATS",
+                    data: "codRequisicaoATS",
+                    className: "text-center align-middle",
+                    width: "80px",
+                    render: function (data) {
+                        // Se for manual, mostra um texto mais subtil e limpo
+                        if (data && data.indexOf("Manualmente") > -1) {
+                            return '<div style="font-size: 11px; color: #9CA3AF; font-weight: 500; line-height: 1.3;">Aberto<br>Manual</div>';
+                        }
+                        // Se vier do ATS, destaca o número
+                        return '<strong style="color: #111827; font-size: 14px;">' + (data || "-") + '</strong>';
+                    }
+                },
 
                 // 1. CANDIDATO + CONTATO
                 {
@@ -203,12 +242,19 @@ var WidgetAdmissao = SuperWidget.extend({
                     data: null,
                     render: function (row) {
                         var cpf = row.cpf ? row.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4") : "-";
-                        return '<div class="stacked-cell">' +
-                            '<strong>' + (row.nomeCandidato || '-') + '</strong>' +
-                            '<span class="sub-text">CPF: ' + cpf + '</span>' +
-                            '<div style="margin-top: 6px; display: flex; flex-direction: column; gap: 2px;">' +
-                            '<a href="mailto:' + row.email + '" class="link-email sub-text"><i class="fluigicon fluigicon-envelope icon-sm"></i> ' + (row.email || '-') + '</a>' +
-                            '<span class="sub-text"><i class="fa-solid fa-phone"></i> ' + (row.telefone || '-') + '</span>' +
+
+                        return '<div style="display: flex; flex-direction: column; gap: 4px;">' +
+                            '<strong style="color: #111827; font-size: 13px; text-transform: uppercase;">' + (row.nomeCandidato || '-') + '</strong>' +
+                            '<span style="color: #6B7280; font-size: 12px; display: flex; align-items: center; gap: 6px;">' +
+                            '<i class="fluigicon fluigicon-card icon-sm" style="color: #9CA3AF;"></i> ' + cpf +
+                            '</span>' +
+                            '<div style="display: flex; flex-direction: column; gap: 2px; margin-top: 4px;">' +
+                            '<a href="mailto:' + row.email + '" style="color: #6B7280; font-size: 12px; text-decoration: none; display: flex; align-items: center; gap: 6px;">' +
+                            '<i class="fluigicon fluigicon-envelope icon-sm" style="color: #9CA3AF;"></i> ' + (row.email || '-') +
+                            '</a>' +
+                            '<span style="color: #6B7280; font-size: 12px; display: flex; align-items: center; gap: 6px;">' +
+                            '<i class="fluigicon fluigicon-phone icon-sm" style="color: #9CA3AF;"></i> ' + (row.telefone || '-') +
+                            '</span>' +
                             '</div>' +
                             '</div>';
                     }
@@ -222,13 +268,18 @@ var WidgetAdmissao = SuperWidget.extend({
                         var cnpj = row.cnpjFilial ? row.cnpjFilial.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, "$1.$2.$3/$4-$5") : "-";
                         var data = row.dataContratacao ? moment(row.dataContratacao).format('DD/MM/YYYY') : "-";
 
-                        return '<div class="stacked-cell">' +
-                            '<strong>' + (row.cargoAprovado || '-') + '</strong>' +
-                            '<span class="label-jornada" style="margin-top: 2px; margin-bottom: 4px;">' + (row.jornada || '-') + '</span>' +
-                            '<span class="sub-text"><strong>Depto:</strong> ' + (row.departamento || '-') + '</span>' +
-                            '<span class="sub-text-muted">CNPJ: ' + cnpj + '</span>' +
-                            '<div style="margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--gray-200);">' +
-                            '<span class="sub-text" style="color: var(--gray-800);"><i class="fluigicon fluigicon-calendar icon-sm"></i> Admissão: <strong>' + data + '</strong></span>' +
+                        return '<div style="display: flex; flex-direction: column; gap: 4px;">' +
+                            // Cargo e Jornada na mesma linha
+                            '<div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">' +
+                            '<strong style="color: #111827; font-size: 13px;">' + (row.cargoAprovado || '-') + '</strong>' +
+                            '<span style="background: #F3F4F6; color: #4B5563; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 600;">' + (row.jornada || '-') + '</span>' +
+                            '</div>' +
+                            '<span style="color: #6B7280; font-size: 12px;"><strong>Depto:</strong> ' + (row.departamento || '-') + '</span>' +
+                            '<span style="color: #9CA3AF; font-size: 11px;">CNPJ: ' + cnpj + '</span>' +
+                            // Separador suave para a Admissão
+                            '<div style="display: flex; align-items: center; gap: 6px; margin-top: 4px; padding-top: 6px; border-top: 1px dashed #E5E7EB;">' +
+                            '<i class="fluigicon fluigicon-calendar icon-sm" style="color: var(--cor-primaria);"></i>' +
+                            '<span style="color: #111827; font-size: 12px;">Admissão: <strong>' + data + '</strong></span>' +
                             '</div>' +
                             '</div>';
                     }
@@ -241,23 +292,23 @@ var WidgetAdmissao = SuperWidget.extend({
                     render: function (row) {
                         var nasc = row.dataNascimento ? moment(row.dataNascimento).format('DD/MM/YYYY') : "-";
                         var isPCD = (row.deficienciaFisica === "1" || row.deficienciaAuditiva === "1" || row.deficienciaVisual === "1" || row.deficienciaIntelectual === "1");
-                        var labelPcd = isPCD ? '<span class="label label-success" style="margin-top:4px;">PCD</span>' : '';
+                        var labelPcd = isPCD ? '<span style="background: #D1FAE5; color: #065F46; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; margin-bottom: 4px; display: inline-block;">PCD</span>' : '';
 
                         var reqERP = row.codRequisicaoERP || '-';
                         var btnRequisicao = '';
 
-                        // Se existe uma requisição no ERP, adiciona o botão
+                        // Botão de requisição mais discreto e alinhado
                         if (reqERP !== '-' && reqERP !== '') {
                             var rowJson = encodeURIComponent(JSON.stringify(row));
-                            btnRequisicao = '<button class="btn btn-info btn-xs btn-rounded" style="margin-top: 6px; font-size: 10px; width: 100%;" onclick="WidgetAdmissao.instance().verDadosRequisicao(\'' + rowJson + '\')">' +
-                                '<i class="fluigicon fluigicon-zoom-in"></i> Ver Requisição</button>';
+                            btnRequisicao = '<button class="btn btn-default btn-xs" style="margin-top: 4px; font-size: 10px; display: flex; align-items: center; gap: 4px; border-radius: 6px; color: #4B5563; border-color: #D1D5DB; background: #FFF;" onclick="WidgetAdmissao.instance().verDadosRequisicao(\'' + rowJson + '\')">' +
+                                '<i class="fluigicon fluigicon-zoom-in icon-sm" style="color: var(--cor-primaria);"></i> Ver ERP</button>';
                         }
 
-                        return '<div class="stacked-cell">' +
-                            '<span class="sub-text">Nasc: ' + nasc + '</span>' +
-                            '<span class="sub-text">Tipo Req: ' + (row.tipoRequisicao || '-') + '</span>' +
-                            '<span class="sub-text">Req ERP: <strong>' + reqERP + '</strong></span>' +
+                        return '<div style="display: flex; flex-direction: column; gap: 2px;">' +
                             labelPcd +
+                            '<span style="color: #6B7280; font-size: 12px;">Nasc: <strong style="color: #374151;">' + nasc + '</strong></span>' +
+                            '<span style="color: #6B7280; font-size: 12px;">Origem: <strong style="color: #374151;">' + (row.tipoRequisicao || '-') + '</strong></span>' +
+                            '<span style="color: #6B7280; font-size: 12px;">Req: <strong style="color: #374151;">' + reqERP + '</strong></span>' +
                             btnRequisicao +
                             '</div>';
                     }
@@ -272,57 +323,51 @@ var WidgetAdmissao = SuperWidget.extend({
                         if (row.processoAbertoId) {
                             var statusProcesso = String(row.statusProcesso || "0");
 
-                            // 1. Processo Cancelado
+                            // Estrutura base para centrar e organizar o crachá (badge) e o ID
+                            var wrapperStart = '<div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">';
+                            var txtId = '<span style="color: #9CA3AF; font-size: 11px;">Fluig: ' + row.processoAbertoId + '</span></div>';
+
                             if (statusProcesso === "1") {
-                                return '<div class="stacked-cell" style="align-items: center;">' +
-                                    '<span class="label label-danger" style="white-space: normal; text-align: center; margin-bottom: 4px; padding: 4px 8px;">Solicitação Cancelada</span>' +
-                                    '<span class="sub-text-muted">Fluig: ' + row.processoAbertoId + '</span>' +
-                                    '</div>';
+                                return wrapperStart + '<span class="label" style="background: #FEE2E2; color: #991B1B; padding: 4px 10px; border-radius: 12px; font-size: 11px; white-space: normal;">Cancelada</span>' + txtId;
                             }
 
-                            // 2. Processo Finalizado
                             if (statusProcesso === "2") {
-                                return '<div class="stacked-cell" style="align-items: center;">' +
-                                    '<span class="label label-success" style="white-space: normal; text-align: center; margin-bottom: 4px; padding: 4px 8px;">Solicitação Finalizada</span>' +
-                                    '<span class="sub-text-muted">Fluig: ' + row.processoAbertoId + '</span>' +
-                                    '</div>';
+                                return wrapperStart + '<span class="label" style="background: #D1FAE5; color: #065F46; padding: 4px 10px; border-radius: 12px; font-size: 11px; white-space: normal;">Finalizada</span>' + txtId;
                             }
 
-                            // 3. Processo em Andamento (Status 0) - Lógica original das atividades
                             var dicAtividades = {
-                                "97": { nome: "Admissão RH", cor: "info" },
-                                "122": { nome: "Aguard. Candidato", cor: "warning" },
-                                "150": { nome: "Aguard. Correção", cor: "danger" },
-                                "135": { nome: "Gerar Kit", cor: "info" },
-                                "128": { nome: "Validar Kit", cor: "info" },
-                                "129": { nome: "Assinatura Cand.", cor: "warning" },
-                                "138": { nome: "Integração RM", cor: "default" },
-                                "139": { nome: "Integração RM", cor: "default" },
-                                "104": { nome: "Finalizado", cor: "success" }
+                                "97": { nome: "Admissão RH", bg: "#DBEAFE", color: "#1E40AF" },
+                                "135": { nome: "Gerar Kit", bg: "#DBEAFE", color: "#1E40AF" },
+                                "128": { nome: "Validar Kit", bg: "#DBEAFE", color: "#1E40AF" },
+                                "138": { nome: "Integração RM", bg: "#F3F4F6", color: "#4B5563" },
+                                "139": { nome: "Integração RM", bg: "#F3F4F6", color: "#4B5563" },
+                                "104": { nome: "Finalizado", bg: "#D1FAE5", color: "#065F46" }
                             };
 
+                            // Adiciona as atividades dinâmicas do formulário de configuração
+                            dicAtividades[that.config.atvDados] = { nome: "Aguard. Candidato", bg: "#FEF3C7", color: "#92400E" };
+                            dicAtividades[that.config.atvCorrecao] = { nome: "Aguard. Correção", bg: "#FEE2E2", color: "#991B1B" };
+                            dicAtividades[that.config.atvAssinatura] = { nome: "Assinatura Cand.", bg: "#FEF3C7", color: "#92400E" };
+
                             var dicPassosCandidato = {
-                                "1": "Passo 1 - Propostas", "2": "Passo 2 - LGPD", "3": "Passo 3 - Dados",
-                                "4": "Passo 4 - Formação", "5": "Passo 5 - Dependentes", "6": "Passo 6 - Filiação",
-                                "7": "Passo 7 - Benefícios", "8": "Passo 8 - Documentos", "9": "Passo 9 - Fim"
+                                "1": "1. Propostas", "2": "2. LGPD", "3": "3. Dados",
+                                "4": "4. Formação", "5": "5. Dependentes", "6": "6. Filiação",
+                                "7": "7. Benefícios", "8": "8. Documentos", "9": "9. Fim"
                             };
 
                             var atvId = row.atividadeFluig || "0";
-                            var infoAtv = dicAtividades[atvId] || { nome: "Em Andamento (" + atvId + ")", cor: "default" };
+                            var infoAtv = dicAtividades[atvId] || { nome: "Andamento (" + atvId + ")", bg: "#F3F4F6", color: "#4B5563" };
 
-                            var htmlBadges = '<span class="label label-' + infoAtv.cor + '" style="white-space: normal; text-align: center; margin-bottom: 4px;">' + infoAtv.nome + '</span>';
+                            var htmlBadges = '<span class="label" style="background: ' + infoAtv.bg + '; color: ' + infoAtv.color + '; padding: 4px 10px; border-radius: 12px; font-size: 11px; white-space: normal; text-align: center;">' + infoAtv.nome + '</span>';
 
-                            if (atvId === "122" && row.passoCandidato && row.passoCandidato !== "") {
+                            if (atvId === that.config.atvDados && row.passoCandidato && row.passoCandidato !== "") {
                                 var nomePasso = dicPassosCandidato[row.passoCandidato] || ("Passo " + row.passoCandidato);
-                                htmlBadges += '<span class="label" style="background-color: #3b82f6 !important; color: #ffffff !important; white-space: normal; text-align: center; margin-bottom: 4px; font-size: 11px; border: none;">' + nomePasso + '</span>';
+                                htmlBadges += '<span class="label" style="background: #3B82F6; color: #FFFFFF; padding: 2px 8px; border-radius: 6px; font-size: 10px; border: none; margin-top: 2px;">' + nomePasso + '</span>';
                             }
 
-                            return '<div class="stacked-cell" style="align-items: center;">' +
-                                htmlBadges +
-                                '<span class="sub-text-muted">Fluig: ' + row.processoAbertoId + '</span>' +
-                                '</div>';
+                            return wrapperStart + htmlBadges + txtId;
                         } else {
-                            return '<span class="label label-default">Não Iniciado</span>';
+                            return '<div style="display: flex; justify-content: center;"><span class="label" style="background: #F3F4F6; color: #6B7280; padding: 4px 10px; border-radius: 12px; font-size: 11px;">Não Iniciado</span></div>';
                         }
                     }
                 },
@@ -330,50 +375,54 @@ var WidgetAdmissao = SuperWidget.extend({
                 // 5. AÇÕES
                 {
                     title: "Ações",
-                    data: null, className: "text-center", orderable: false,
+                    data: null,
+                    className: "text-center",
+                    orderable: false,
+                    width: "120px",
                     render: function (data, type, row) {
                         var rowJson = encodeURIComponent(JSON.stringify(row));
-
                         var statusProcesso = String(row.statusProcesso || "0");
                         var isCancelado = (statusProcesso === "1");
                         var isFinalizado = (statusProcesso === "2");
 
+                        // Estilos base partilhados para todos os botões para garantir alinhamento
+                        var btnStyle = 'width: 100%; font-size: 11px; padding: 6px 8px; display: flex; align-items: center; justify-content: center; gap: 6px; border-radius: 6px; font-weight: 500; border: none; box-shadow: 0 1px 2px rgba(0,0,0,0.05); transition: background-color 0.2s;';
+                        var wrapperStart = '<div style="display: flex; flex-direction: column; gap: 6px; align-items: stretch; padding: 0 4px;">';
+
                         if (row.processoAbertoId && !isCancelado && !isFinalizado) {
-                            // PROCESSO NORMAL (ABERTO = 0)
-                            var botoes = '<div style="display: flex; flex-direction: column; gap: 4px; align-items: stretch;">' +
-                                '<button class="btn btn-warning btn-sm btn-rounded" style="width: 100%; font-size: 11px; padding: 4px 8px;" title="Abrir Processo" onclick="WidgetAdmissao.instance().abrirProcessoExistente(\'' + row.processoAbertoId + '\')">' +
-                                '<i class="fluigicon fluigicon-info-sign"></i> Ver Solicitação</button>';
+                            // PROCESSO ABERTO
+                            var botoes = wrapperStart +
+                                '<button class="btn btn-warning btn-sm" style="' + btnStyle + ' background: #F59E0B; color: #FFF;" title="Abrir Processo" onclick="WidgetAdmissao.instance().abrirProcessoExistente(\'' + row.processoAbertoId + '\')">' +
+                                '<i class="fluigicon fluigicon-info-sign"></i> Solicitação</button>';
 
-                            var atvsCandidato = ["122", "150", "129"];
+                            var atvsCandidato = [that.config.atvDados, that.config.atvCorrecao, that.config.atvAssinatura];
                             if (atvsCandidato.indexOf(String(row.atividadeFluig)) !== -1) {
-                                botoes += '<button class="btn btn-success btn-sm btn-rounded" style="width: 100%; font-size: 11px; padding: 4px 8px;" title="Reenviar Link por E-mail" onclick="WidgetAdmissao.instance().reenviarEmailCandidato(\'' + rowJson + '\')">' +
-                                    '<i class="fluigicon fluigicon-envelope"></i> Reenviar E-mail</button>';
+                                botoes += '<button class="btn btn-success btn-sm" style="' + btnStyle + ' background: #10B981; color: #FFF;" title="Reenviar Link por E-mail" onclick="WidgetAdmissao.instance().reenviarEmailCandidato(\'' + rowJson + '\')">' +
+                                    '<i class="fluigicon fluigicon-envelope"></i> Reenviar Link</button>';
                             }
-
-                            botoes += '</div>';
-                            return botoes;
+                            return botoes + '</div>';
 
                         } else if (row.processoAbertoId && isCancelado) {
-                            // PROCESSO FOI CANCELADO (STATUS = 1) -> Dois botões com novo layout
-                            return '<div style="display: flex; flex-direction: column; gap: 4px; align-items: stretch;">' +
-                                '<button class="btn btn-warning btn-sm btn-rounded" style="width: 100%; font-size: 11px; padding: 4px 8px;" title="Ver Histórico Cancelado" onclick="WidgetAdmissao.instance().abrirProcessoExistente(\'' + row.processoAbertoId + '\')">' +
-                                '<i class="fluigicon fluigicon-info-sign"></i> Ver Solicitação</button>' +
-                                '<button class="btn btn-primary btn-sm btn-rounded" style="width: 100%; font-size: 11px; padding: 4px 8px;" title="Iniciar Novo Processo" onclick="WidgetAdmissao.instance().iniciarProcessoAdmissao(\'' + rowJson + '\')">' +
-                                '<i class="fluigicon fluigicon-play-circle"></i> Iniciar Nova</button>' +
+                            // PROCESSO CANCELADO
+                            return wrapperStart +
+                                '<button class="btn btn-default btn-sm" style="' + btnStyle + ' background: #F3F4F6; color: #4B5563;" title="Ver Histórico Cancelado" onclick="WidgetAdmissao.instance().abrirProcessoExistente(\'' + row.processoAbertoId + '\')">' +
+                                '<i class="fluigicon fluigicon-info-sign"></i> Histórico</button>' +
+                                '<button class="btn btn-primary btn-sm" style="' + btnStyle + ' background: #3B82F6; color: #FFF;" title="Iniciar Novo Processo" onclick="WidgetAdmissao.instance().iniciarProcessoAdmissao(\'' + rowJson + '\')">' +
+                                '<i class="fluigicon fluigicon-play-circle"></i> Novo Processo</button>' +
                                 '</div>';
 
                         } else if (row.processoAbertoId && isFinalizado) {
-                            // PROCESSO FOI FINALIZADO COM SUCESSO (STATUS = 2)
-                            return '<div style="display: flex; flex-direction: column; align-items: stretch;">' +
-                                '<button class="btn btn-success btn-sm btn-rounded" style="width: 100%; font-size: 11px; padding: 4px 8px;" title="Ver Processo Concluído" onclick="WidgetAdmissao.instance().abrirProcessoExistente(\'' + row.processoAbertoId + '\')">' +
-                                '<i class="fluigicon fluigicon-check-circle-on"></i> Ver Solicitação</button>' +
+                            // PROCESSO FINALIZADO
+                            return wrapperStart +
+                                '<button class="btn btn-success btn-sm" style="' + btnStyle + ' background: #10B981; color: #FFF;" title="Ver Processo Concluído" onclick="WidgetAdmissao.instance().abrirProcessoExistente(\'' + row.processoAbertoId + '\')">' +
+                                '<i class="fluigicon fluigicon-check-circle-on"></i> Ver Finalizado</button>' +
                                 '</div>';
 
                         } else {
-                            // NUNCA FOI INICIADO
-                            return '<div style="display: flex; flex-direction: column; align-items: stretch;">' +
-                                '<button class="btn btn-primary btn-sm btn-rounded" style="width: 100%; font-size: 11px; padding: 4px 8px;" onclick="WidgetAdmissao.instance().iniciarProcessoAdmissao(\'' + rowJson + '\')">' +
-                                '<i class="fluigicon fluigicon-play-circle"></i> Iniciar</button>' +
+                            // NÃO INICIADO
+                            return wrapperStart +
+                                '<button class="btn btn-primary btn-sm" style="' + btnStyle + ' background: var(--cor-primaria); color: #FFF;" onclick="WidgetAdmissao.instance().iniciarProcessoAdmissao(\'' + rowJson + '\')">' +
+                                '<i class="fluigicon fluigicon-play-circle"></i> Iniciar Admissão</button>' +
                                 '</div>';
                         }
                     }
@@ -692,7 +741,7 @@ var WidgetAdmissao = SuperWidget.extend({
                 localStorage.setItem("FLUIG_ATS_DATA", JSON.stringify(atsData));
 
                 var tenant = WCMAPI.tenantCode || "1";
-                var urlFluig = '/portal/p/' + tenant + '/pageworkflowview?processID=FLUIG-0002%20-%20Admissão%20IRHO';
+                var urlFluig = '/portal/p/' + tenant + '/pageworkflowview?processID=' + encodeURIComponent(that.config.processId);
                 window.open(urlFluig, '_blank');
             },
             error: function (err) {
@@ -735,9 +784,9 @@ var WidgetAdmissao = SuperWidget.extend({
                 load.textMessage = 'Enviando e-mail...';
 
                 // 2. Identifica qual a URL que precisamos buscar baseado na etapa
-                var chaveUrlConfig = "URL_PAGINA_CANDIDATO"; // Padrão para a 122
-                if (atividade === "150") chaveUrlConfig = "URL_PAGINA_CORRECAO";
-                if (atividade === "129") chaveUrlConfig = "URL_PAGINA_ASSINATURA";
+                var chaveUrlConfig = "URL_PAGINA_CANDIDATO";
+                if (atividade === that.config.atvCorrecao) chaveUrlConfig = "URL_PAGINA_CORRECAO";
+                if (atividade === that.config.atvAssinatura) chaveUrlConfig = "URL_PAGINA_ASSINATURA";
 
                 // 3. Busca a URL Base dinamicamente no Dataset de Configurações
                 var cActive = DatasetFactory.createConstraint("metadata#active", "true", "true", ConstraintType.MUST);
