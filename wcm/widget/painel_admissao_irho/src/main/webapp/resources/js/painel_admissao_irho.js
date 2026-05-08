@@ -1,3 +1,4 @@
+
 var WidgetAdmissao = SuperWidget.extend({
     instanceId: null,
     table: null,
