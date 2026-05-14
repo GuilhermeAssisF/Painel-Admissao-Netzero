@@ -54,8 +54,12 @@
             <input type="date" id="filtroDataAte_${instanceId}" style="border: none; outline: none; background: transparent; font-size: 13px; color: var(--gray-800); cursor: pointer;">
         </div>
 
-        <button class="btn btn-success btn-rounded" id="btnAtualizarDatas_${instanceId}" style="padding: 8px 20px; display: flex; align-items: center; gap: 8px;">
+        <button type="button" class="btn btn-success btn-rounded" id="btnAtualizarDatas_${instanceId}" style="padding: 8px 20px; display: flex; align-items: center; gap: 8px;">
             <i class="fluigicon fluigicon-calendar"></i> Aplicar Datas
+        </button>
+
+        <button type="button" class="btn btn-info btn-rounded" id="btnSincronizarATS_${instanceId}" style="padding: 8px 20px; display: flex; align-items: center; gap: 8px; margin-left: 10px;">
+            <i class="fluigicon fluigicon-refresh"></i> Sincronizar Dados
         </button>
     </div>
 

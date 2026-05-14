@@ -44,10 +44,10 @@ var WidgetAdmissao = SuperWidget.extend({
                 if (ds && ds.values && ds.values.length > 0) {
                     var item = ds.values[0];
                     that.config = {
-                        processId: item.FLUIG_PROCESS_ID_ADMISSAO || "FLUIG-0002 - Admissão IRHO",
-                        atvDados: String(item.ATIVIDADE_CANDIDATO_DADOS || "122"),
-                        atvCorrecao: String(item.ATIVIDADE_CANDIDATO_CORRECAO || "150"),
-                        atvAssinatura: String(item.ATIVIDADE_CANDIDATO_ASSINATURA || "129")
+                        processId: "FLUIG-0002 - Admissão IRHO",
+                        atvDados: "122",
+                        atvCorrecao: "150",
+                        atvAssinatura: "129"
                     };
                 }
                 if (callback) callback();
@@ -66,6 +66,12 @@ var WidgetAdmissao = SuperWidget.extend({
             that.filtros.dataDe = $("#filtroDataDe_" + that.instanceId).val();
             that.filtros.dataAte = $("#filtroDataAte_" + that.instanceId).val();
             if (that.table) that.table.draw();
+        });
+
+        // Botão para Recarregar os Dados do ATS (Ignora o Cache)
+        $("#btnSincronizarATS_" + this.instanceId).off("click").on('click', function () {
+            // Passamos 'true' para forçar a função a pular a verificação do SessionStorage
+            WidgetAdmissao.instance().carregarDados(true);
         });
 
         // Buscas de Texto (Geral, CPF, CNPJ)
@@ -242,7 +248,9 @@ var WidgetAdmissao = SuperWidget.extend({
                     title: "Candidato e Contato",
                     data: null,
                     render: function (row) {
-                        var cpf = row.cpf ? row.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4") : "-";
+                        var cpf = (row.cpf && String(row.cpf).replace(/\D/g, '').trim().length > 0)
+                            ? row.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4")
+                            : '<span style="color: #EF4444; font-weight: 600;">CPF Ausente no ATS</span>';
 
                         return '<div style="display: flex; flex-direction: column; gap: 4px;">' +
                             '<strong style="color: #111827; font-size: 13px; text-transform: uppercase;">' + (row.nomeCandidato || '-') + '</strong>' +
@@ -297,13 +305,17 @@ var WidgetAdmissao = SuperWidget.extend({
 
                         var reqERP = row.codRequisicaoERP || '-';
                         var btnRequisicao = '';
+                        var rowJson = encodeURIComponent(JSON.stringify(row));
 
-                        // Botão de requisição mais discreto e alinhado
+                        // Botão de requisição (ERP) - Ajustado para width 100% para padronizar
                         if (reqERP !== '-' && reqERP !== '') {
-                            var rowJson = encodeURIComponent(JSON.stringify(row));
-                            btnRequisicao = '<button class="btn btn-default btn-xs" style="margin-top: 4px; font-size: 10px; display: flex; align-items: center; gap: 4px; border-radius: 6px; color: #4B5563; border-color: #D1D5DB; background: #FFF;" onclick="WidgetAdmissao.instance().verDadosRequisicao(\'' + rowJson + '\')">' +
+                            btnRequisicao = '<button type="button" class="btn btn-default btn-xs" style="margin-top: 4px; font-size: 10px; display: flex; align-items: center; justify-content: center; gap: 4px; border-radius: 6px; color: #4B5563; border-color: #D1D5DB; background: #FFF; width: 100%;" onclick="WidgetAdmissao.instance().verDadosRequisicao(\'' + rowJson + '\')">' +
                                 '<i class="fluigicon fluigicon-zoom-in icon-sm" style="color: var(--cor-primaria);"></i> Ver ERP</button>';
                         }
+
+                        // Novo Botão para abrir o Modal do ATS
+                        var btnDadosATS = '<button type="button" class="btn btn-default btn-xs" style="margin-top: 4px; font-size: 10px; border-radius: 6px; color: #4B5563; border-color: #D1D5DB; background: #FFF; width: 100%; display: flex; align-items: center; justify-content: center; gap: 4px;" onclick="WidgetAdmissao.instance().verDadosATS(\'' + rowJson + '\')">' +
+                            '<i class="fluigicon fluigicon-list-alt icon-sm" style="color: #6366F1;"></i> Dados ATS</button>';
 
                         return '<div style="display: flex; flex-direction: column; gap: 2px;">' +
                             labelPcd +
@@ -311,6 +323,7 @@ var WidgetAdmissao = SuperWidget.extend({
                             '<span style="color: #6B7280; font-size: 12px;">Origem: <strong style="color: #374151;">' + (row.tipoRequisicao || '-') + '</strong></span>' +
                             '<span style="color: #6B7280; font-size: 12px;">Req: <strong style="color: #374151;">' + reqERP + '</strong></span>' +
                             btnRequisicao +
+                            btnDadosATS + // Adicionado aqui, logo abaixo do botão do ERP
                             '</div>';
                     }
                 },
@@ -421,10 +434,24 @@ var WidgetAdmissao = SuperWidget.extend({
 
                         } else {
                             // NÃO INICIADO
-                            return wrapperStart +
-                                '<button class="btn btn-primary btn-sm" style="' + btnStyle + ' background: var(--cor-primaria); color: #FFF;" onclick="WidgetAdmissao.instance().iniciarProcessoAdmissao(\'' + rowJson + '\')">' +
-                                '<i class="fluigicon fluigicon-play-circle"></i> Iniciar Admissão</button>' +
-                                '</div>';
+
+                            // 1. Verifica se o candidato possui CPF (remove espaços e pontuações para validar)
+                            var cpfValido = (row.cpf && String(row.cpf).replace(/\D/g, '').trim().length > 0);
+
+                            if (!cpfValido) {
+                                // 2. Se NÃO tiver CPF: Mostra botão vermelho com alerta em Toast
+                                return wrapperStart +
+                                    '<button type="button" class="btn btn-danger btn-sm" style="' + btnStyle + ' background: #EF4444; color: #FFF;" onclick="FLUIGC.toast({ title: \'Ação Bloqueada:\', message: \'Candidato sem CPF no ATS. Por favor, abra a solicitação de admissão manualmente pelo Fluig.\', type: \'warning\' });">' +
+                                    '<i class="fluigicon fluigicon-warning-sign-circle" style="font-size: 16px;"></i>' +
+                                    '<span style="line-height: 1.2; text-align: center; flex: 1;">Candidato sem CPF.<br>Abra a solicitação<br>manualmente!</span></button>' +
+                                    '</div>';
+                            } else {
+                                // 3. Se TIVER CPF: Mostra o botão normal para iniciar integração
+                                return wrapperStart +
+                                    '<button type="button" class="btn btn-primary btn-sm" style="' + btnStyle + ' background: var(--cor-primaria); color: #FFF;" onclick="WidgetAdmissao.instance().iniciarProcessoAdmissao(\'' + rowJson + '\')">' +
+                                    '<i class="fluigicon fluigicon-play-circle"></i> Iniciar Admissão</button>' +
+                                    '</div>';
+                            }
                         }
                     }
                 }
@@ -444,11 +471,34 @@ var WidgetAdmissao = SuperWidget.extend({
     },
 
     /**
-     * Carrega os dados reais de forma Assíncrona e usa uma Fila de Workers para os Status em Background.
+     * Carrega os dados usando SessionStorage para velocidade extrema
      */
-    carregarDados: function () {
+    carregarDados: function (forceReload) {
         var that = this;
-        var load = FLUIGC.loading(window, { textMessage: 'Carregando dados dos candidatos...' });
+        // Cria uma chave única de cache para este usuário
+        var cacheKey = "FLUIG_ATS_DASH_DATA_" + WCMAPI.userCode;
+
+        // ====================================================================
+        // 1. LÊ DO CACHE: Se já carregou nesta sessão, desenha instantaneamente!
+        // ====================================================================
+        if (!forceReload) {
+            var dadosEmCache = sessionStorage.getItem(cacheKey);
+            if (dadosEmCache) {
+                var finalRegistros = JSON.parse(dadosEmCache);
+
+                that.table.clear().rows.add(finalRegistros).draw();
+                that.updateMetrics(finalRegistros);
+
+                // Manda verificar se alguém avançou de etapa "escondido" no background
+                that.atualizarStatusEmBackground(finalRegistros);
+                return; // Interrompe a função aqui. Zero loading na tela!
+            }
+        }
+
+        // ====================================================================
+        // 2. BUSCA PESADA: Só entra aqui se não tiver cache ou se clicar em Atualizar
+        // ====================================================================
+        var load = FLUIGC.loading(window, { textMessage: 'Buscando base completa do ATS...' });
         load.show();
 
         var fetchDataset = function (name, fields, constraints) {
@@ -460,7 +510,6 @@ var WidgetAdmissao = SuperWidget.extend({
             });
         };
 
-        // PROJEÇÃO: Trazendo apenas o necessário do formulário
         var formFields = [
             "cpfcnpj", "cpfcnpjValue", "idProcessoFluig", "cpNumeroSolicitacao",
             "cpPassoAtualCandidato", "cppassoatualcandidato", "atividadeAtual",
@@ -468,7 +517,6 @@ var WidgetAdmissao = SuperWidget.extend({
             "txtCELULAR", "FUN_IDDESCFUN", "FUN_CARGO", "FUN_SECAO_IDDESC_AD",
             "FUN_ADMISSAO", "FUN_CNPJ_FILIAL", "dtDataNascColaborador", "cpJornadaAdmissao"
         ];
-
         var constraintsForm = [DatasetFactory.createConstraint("metadata#active", "true", "true", ConstraintType.MUST)];
 
         Promise.all([
@@ -480,7 +528,7 @@ var WidgetAdmissao = SuperWidget.extend({
             var registosATS = resultados[1];
             var mapProcessos = {};
 
-            // 1. Mapeia o formulário
+            // Mapeia o formulário
             for (var i = 0; i < dsAbertosValues.length; i++) {
                 var r = dsAbertosValues[i];
                 var cpfForm = r["cpfcnpj"] || r.cpfcnpj || r["cpfcnpjValue"] || r.cpfcnpjValue;
@@ -502,24 +550,21 @@ var WidgetAdmissao = SuperWidget.extend({
             var finalRegistros = [];
             if (registosATS.length > 0 && registosATS[0].ERROR && registosATS[0].ERROR !== "") registosATS = [];
 
-            // 2. Cruza com ATS
+            // Cruza com ATS
             for (var j = 0; j < registosATS.length; j++) {
                 var c = registosATS[j];
                 var atsCpfLimpo = (c.cpf || "").replace(/\D/g, '');
 
                 if (mapProcessos[atsCpfLimpo]) {
-                    c.processoAbertoId = mapProcessos[atsCpfLimpo].id;
-                    c.atividadeFluig = mapProcessos[atsCpfLimpo].atividade;
-                    c.passoCandidato = mapProcessos[atsCpfLimpo].passo;
-                    c.statusProcesso = "0";
-                    mapProcessos[atsCpfLimpo].processadoNoATS = true;
+                    c.processoAbertoId = mapProcessos[atsCpfLimpo].id; c.atividadeFluig = mapProcessos[atsCpfLimpo].atividade;
+                    c.passoCandidato = mapProcessos[atsCpfLimpo].passo; c.statusProcesso = "0"; mapProcessos[atsCpfLimpo].processadoNoATS = true;
                 } else {
                     c.processoAbertoId = null; c.atividadeFluig = null; c.passoCandidato = null; c.statusProcesso = null;
                 }
                 finalRegistros.push(c);
             }
 
-            // 3. Resgata Manuais
+            // Resgata Manuais
             for (var cpfKey in mapProcessos) {
                 if (mapProcessos[cpfKey].processadoNoATS === false) {
                     var pLocal = mapProcessos[cpfKey];
@@ -533,114 +578,110 @@ var WidgetAdmissao = SuperWidget.extend({
                 }
             }
 
-            // MÁGICA: Tira o loading e desenha a tabela NA HORA
+            // 3. GRAVA NO CACHE ANTES DE DESENHAR A TABELA
+            sessionStorage.setItem(cacheKey, JSON.stringify(finalRegistros));
+
             that.table.clear().rows.add(finalRegistros).draw();
             load.hide();
-
-            // Atualiza os Cards Superiores
             that.updateMetrics(finalRegistros);
 
-            // =========================================================================
-            // WORKER QUEUE: Busca de Status Individual e Paralela (À prova de bugs do Fluig)
-            // =========================================================================
-
-            // Removemos duplicatas para não fazer requisições à toa
-            var idsParaStatus = [];
-            finalRegistros.forEach(function (r) {
-                var id = r.processoAbertoId ? String(r.processoAbertoId) : null;
-                if (id && id !== "null" && id !== "" && idsParaStatus.indexOf(id) === -1) {
-                    idsParaStatus.push(id);
-                }
-            });
-
-            if (idsParaStatus.length > 0) {
-                var idIndex = 0;
-
-                var processarProximoId = function () {
-                    if (idIndex >= idsParaStatus.length) return; // Fila terminou
-
-                    var currentId = idsParaStatus[idIndex];
-                    idIndex++;
-
-                    // A grande jogada: O Fluig NÃO falha quando usamos um MUST isolado para uma chave primária!
-                    var cStatus = [DatasetFactory.createConstraint("workflowProcessPK.processInstanceId", currentId, currentId, ConstraintType.MUST)];
-
-                    // Enviamos os fields como null para garantir que nenhuma projeção quebre o dataset nativo
-                    fetchDataset("workflowProcess", null, cStatus)
-                        .then(function (dsStatus) {
-                            var realStatus = null;
-                            if (dsStatus && dsStatus.length > 0) {
-                                realStatus = String(dsStatus[0]["status"]);
-                            }
-
-                            var mudouAlguem = false;
-                            var rowsToRemove = [];
-
-                            // Atualiza a(s) linha(s) exata(s) que pertencem a este ID
-                            that.table.rows().every(function () {
-                                var rData = this.data();
-
-                                if (String(rData.processoAbertoId) === currentId) {
-                                    // 1. PROCESSO APAGADO DO FLUIG (FANTASMA)
-                                    if (realStatus === null) {
-                                        if (rData.isManual) {
-                                            rowsToRemove.push(this); // Manual apagado = Remove
-                                        } else {
-                                            // ATS apagado = Solta o ID para o RH iniciar um novo
-                                            rData.processoAbertoId = null;
-                                            rData.atividadeFluig = null;
-                                            rData.passoCandidato = null;
-                                            rData.statusProcesso = null;
-                                            this.data(rData);
-                                            mudouAlguem = true;
-                                        }
-                                    }
-                                    // 2. PROCESSO EXISTE (Avalia os Status Reais 0, 1 ou 2)
-                                    else {
-                                        if (rData.isManual && realStatus === "1") {
-                                            // A SUA REGRA: Processo Manual + Status Cancelado (1) = Remove
-                                            rowsToRemove.push(this);
-                                        } else if (rData.statusProcesso !== realStatus) {
-                                            // Atualiza processos abertos, finalizados e os cancelados do ATS
-                                            rData.statusProcesso = realStatus;
-                                            this.data(rData);
-                                            mudouAlguem = true;
-                                        }
-                                    }
-                                }
-                            });
-
-                            // Arranca a linha do DataTables se caiu nas regras de exclusão
-                            if (rowsToRemove.length > 0) {
-                                for (var k = 0; k < rowsToRemove.length; k++) {
-                                    rowsToRemove[k].remove();
-                                }
-                                mudouAlguem = true;
-                            }
-
-                            // Redesenha a tabela instantaneamente sem piscar a tela
-                            if (mudouAlguem) that.table.draw(false);
-
-                            // Manda o Worker puxar o próximo ID da fila
-                            processarProximoId();
-
-                        }).catch(function (e) {
-                            console.error("Erro ao checar ID " + currentId, e);
-                            processarProximoId(); // Se der erro de rede, não trava a fila, apenas segue
-                        });
-                };
-
-                // Lança 3 "Trabalhadores" simultâneos. Eles vão limpar a lista inteira juntos.
-                for (var w = 0; w < 3; w++) {
-                    processarProximoId();
-                }
-            }
+            // Chama a rotina separada para rodar os workers
+            that.atualizarStatusEmBackground(finalRegistros);
 
         }).catch(function (err) {
             console.error("Erro no Promise.all:", err);
             FLUIGC.toast({ title: 'Erro:', message: 'Falha ao buscar as bases de dados iniciais.', type: 'danger' });
             load.hide();
         });
+    },
+
+    /**
+     * WORKER QUEUE ISOLADA: Busca Status em paralelo sem dar loading na tela
+     */
+    atualizarStatusEmBackground: function (finalRegistros) {
+        var that = this;
+        var idsParaStatus = [];
+        var cacheKey = "FLUIG_ATS_DASH_DATA_" + WCMAPI.userCode;
+
+        // Extrai os IDs únicos que precisamos checar o workflowProcess
+        finalRegistros.forEach(function (r) {
+            var id = r.processoAbertoId ? String(r.processoAbertoId) : null;
+            if (id && id !== "null" && id !== "" && idsParaStatus.indexOf(id) === -1) {
+                idsParaStatus.push(id);
+            }
+        });
+
+        if (idsParaStatus.length > 0) {
+            var idIndex = 0;
+            var atualizouAlgo = false; // Flag para saber se precisamos sobreescrever o cache no final
+
+            var processarProximoId = function () {
+                if (idIndex >= idsParaStatus.length) {
+                    // Quando a fila acabar, se teve mudança de status, salva o cache atualizado!
+                    if (atualizouAlgo) {
+                        var todosDados = that.table.rows().data().toArray();
+                        sessionStorage.setItem(cacheKey, JSON.stringify(todosDados));
+                    }
+                    return;
+                }
+
+                var currentId = idsParaStatus[idIndex];
+                idIndex++;
+
+                var cStatus = [DatasetFactory.createConstraint("workflowProcessPK.processInstanceId", currentId, currentId, ConstraintType.MUST)];
+
+                // Chamada silenciosa (sem loading na tela)
+                DatasetFactory.getDataset("workflowProcess", null, cStatus, null, {
+                    success: function (dsStatus) {
+                        var realStatus = null;
+                        if (dsStatus && dsStatus.values && dsStatus.values.length > 0) {
+                            realStatus = String(dsStatus.values[0]["status"]);
+                        }
+
+                        var mudouAlguem = false;
+                        var rowsToRemove = [];
+
+                        that.table.rows().every(function () {
+                            var rData = this.data();
+                            if (String(rData.processoAbertoId) === currentId) {
+                                if (realStatus === null) {
+                                    if (rData.isManual) {
+                                        rowsToRemove.push(this);
+                                    } else {
+                                        rData.processoAbertoId = null; rData.atividadeFluig = null; rData.passoCandidato = null; rData.statusProcesso = null;
+                                        this.data(rData); mudouAlguem = true;
+                                    }
+                                } else {
+                                    if (rData.isManual && realStatus === "1") {
+                                        rowsToRemove.push(this);
+                                    } else if (rData.statusProcesso !== realStatus) {
+                                        rData.statusProcesso = realStatus;
+                                        this.data(rData); mudouAlguem = true;
+                                    }
+                                }
+                            }
+                        });
+
+                        if (rowsToRemove.length > 0) {
+                            for (var k = 0; k < rowsToRemove.length; k++) { rowsToRemove[k].remove(); }
+                            mudouAlguem = true;
+                        }
+
+                        if (mudouAlguem) {
+                            that.table.draw(false); // Redesenha a tabela preservando a página atual
+                            atualizouAlgo = true;
+                        }
+
+                        // Chama a próxima verificação
+                        processarProximoId();
+                    },
+                    error: function (e) { processarProximoId(); }
+                });
+            };
+
+            // Dispara 3 workers simultâneos
+            for (var w = 0; w < 3; w++) { processarProximoId(); }
+        }
     },
 
     /**
@@ -742,7 +783,7 @@ var WidgetAdmissao = SuperWidget.extend({
                 localStorage.setItem("FLUIG_ATS_DATA", JSON.stringify(atsData));
 
                 var tenant = WCMAPI.tenantCode || "1";
-                var urlFluig = '/portal/p/' + tenant + '/pageworkflowview?processID=' + encodeURIComponent(that.config.processId);
+                var urlFluig = '/portal/p/' + tenant + '/pageworkflowview?processID=FLUIG-0002%20-%20Admissão%20IRHO';
                 window.open(urlFluig, '_blank');
             },
             error: function (err) {
@@ -1021,6 +1062,92 @@ var WidgetAdmissao = SuperWidget.extend({
         FLUIGC.modal({
             content: htmlStyles + htmlBody,
             id: 'modal-dados-requisicao',
+            size: 'large'
+        });
+    },
+
+    /**
+     * Abre um Modal com os dados brutos e originais vindos do ATS
+     */
+    verDadosATS: function (rowJsonEncoded) {
+        var c = JSON.parse(decodeURIComponent(rowJsonEncoded));
+
+        // Função utilitária para preencher com traço caso vazio
+        var fmt = function (val) {
+            return (val && val !== "null" && String(val).trim() !== "") ? val : "-";
+        };
+
+        var cpfFormatado = c.cpf ? String(c.cpf).replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4") : '<span style="color:#ef4444; font-weight:bold;">Ausente</span>';
+        var dataCont = c.dataContratacao ? moment(c.dataContratacao).format("DD/MM/YYYY") : "-";
+        var dataNasc = c.dataNascimento ? moment(c.dataNascimento).format("DD/MM/YYYY") : "-";
+
+        // Verifica quais PCDs o candidato tem para consolidar numa linha só
+        var pcdTxt = [];
+        if (c.deficienciaFisica === "1") pcdTxt.push("Física");
+        if (c.deficienciaAuditiva === "1") pcdTxt.push("Auditiva");
+        if (c.deficienciaVisual === "1") pcdTxt.push("Visual");
+        if (c.deficienciaIntelectual === "1") pcdTxt.push("Intelectual");
+        var pcdFinal = pcdTxt.length > 0 ? pcdTxt.join(", ") : "Não Aplicável";
+
+        // CSS reaproveitado do seu React-style Modal
+        var htmlStyles = [
+            '<style>',
+            '#modal-dados-ats .modal-header, #modal-dados-ats .modal-footer { display: none !important; }',
+            '#modal-dados-ats .modal-content { border-radius: 20px; border: none; background: #f9fafb; }',
+            '.react-wrapper { font-family: "Inter", sans-serif; }',
+            '.react-head { background: #fff; padding: 24px; border-bottom: 1px solid #f3f4f6; display: flex; justify-content: space-between; align-items: center; border-radius: 20px 20px 0 0; }',
+            '.section-title-ats { font-size: 11px; font-weight: 700; color: #6366f1; text-transform: uppercase; letter-spacing: 1px; margin: 20px 0 10px 0; padding-left: 8px; border-left: 3px solid #6366f1; }',
+            '.group-card { background: #fff; border-radius: 12px; border: 1px solid #f3f4f6; padding: 8px 16px; margin-bottom: 16px; }',
+            '.react-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f9fafb; align-items: center;}',
+            '.react-row:last-child { border-bottom: none; }',
+            '.react-label { font-size: 12px; color: #6b7280; font-weight: 500; }',
+            '.react-value { font-size: 12px; color: #111827; font-weight: 600; text-align: right; max-width: 60%; word-break: break-word; }',
+            '.close-btn { font-size: 32px; color: #ef4444; font-weight: 900; cursor: pointer; border: none; background: none; line-height: 0.6; transition: transform 0.2s, color 0.2s; display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; }',
+            '.close-btn:hover { color: #b91c1c; transform: scale(1.1); }',
+            '</style>'
+        ].join('');
+
+        var renderRow = function (label, value) {
+            return '<div class="react-row"><span class="react-label">' + label + '</span><span class="react-value">' + value + '</span></div>';
+        };
+
+        var htmlBody = '<div class="react-wrapper">' +
+            '<div class="react-head"><div><h3 style="margin:0; font-weight:700;">Dados Originais do ATS</h3><span style="color:#6b7280; font-size:12px;">Candidato(a): <strong>' + fmt(c.nomeCandidato) + '</strong></span></div>' +
+            '<button class="close-btn" onclick="$(\'#modal-dados-ats\').find(\'button[data-dismiss=modal]\').click();">&times;</button></div>' +
+            '<div style="padding: 0 24px 24px 24px; max-height: 70vh; overflow-y: auto;">' +
+
+            '<div class="section-title-ats">Dados Pessoais & Contato</div>' +
+            '<div class="group-card">' +
+            renderRow("Nome Completo", fmt(c.nomeCandidato)) +
+            renderRow("CPF", cpfFormatado) +
+            renderRow("Data de Nascimento", dataNasc) +
+            renderRow("E-mail", fmt(c.email)) +
+            renderRow("Telefone / Celular", fmt(c.telefone)) +
+            renderRow("Condição PCD", pcdFinal) +
+            '</div>' +
+
+            '<div class="section-title-ats">Informações da Vaga</div>' +
+            '<div class="group-card">' +
+            renderRow("Cargo Aprovado", fmt(c.cargoAprovado)) +
+            renderRow("Departamento", fmt(c.departamento)) +
+            renderRow("Jornada de Trabalho", fmt(c.jornada)) +
+            renderRow("Previsão de Admissão", dataCont) +
+            renderRow("CNPJ da Filial (Destino)", fmt(c.cnpjFilial)) +
+            '</div>' +
+
+            '<div class="section-title-ats">Integração e Rastreio</div>' +
+            '<div class="group-card">' +
+            renderRow("ID de Origem no ATS", fmt(c.codRequisicaoATS)) +
+            renderRow("Origem da Inserção", c.isManual ? "Manual" : "API ATS") +
+            renderRow("Código da Requisição RM", fmt(c.codRequisicaoERP)) +
+            renderRow("Nº Solicitação Fluig", fmt(c.processoAbertoId)) +
+            '</div>' +
+
+            '</div></div>';
+
+        FLUIGC.modal({
+            content: htmlStyles + htmlBody,
+            id: 'modal-dados-ats',
             size: 'large'
         });
     },

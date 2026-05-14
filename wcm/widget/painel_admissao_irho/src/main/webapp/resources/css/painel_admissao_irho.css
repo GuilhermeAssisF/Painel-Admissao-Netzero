@@ -379,6 +379,27 @@ div[id^="WidgetAdmissao_"] {
 }
 
 /* ==========================================================================
+   BOTÃO SINCRONIZAR (Solid Blue)
+   ========================================================================== */
+.btn-info.btn-rounded {
+    background-color: #3B82F6 !important;
+    color: #ffffff !important;
+    border: none !important;
+    box-shadow: 0 4px 10px rgba(59, 130, 246, 0.2) !important;
+    transition: all 0.2s ease;
+}
+
+.btn-info.btn-rounded:hover {
+    background-color: #2563EB !important; /* Azul levemente mais escuro no hover */
+    box-shadow: 0 6px 14px rgba(59, 130, 246, 0.3) !important; /* Sombra maior */
+    transform: translateY(-1px); /* Botão "levanta" suavemente */
+}
+
+.btn-info.btn-rounded i {
+    color: #ffffff !important;
+}
+
+/* ==========================================================================
    4. TABELA SAAS (Cabeçalho, Linhas e Células)
    ========================================================================== */
 .table {
